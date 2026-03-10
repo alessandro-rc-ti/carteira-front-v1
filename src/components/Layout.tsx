@@ -11,7 +11,6 @@ export function Layout() {
 
   const topNavItems = [
     { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-    { href: "/banks", label: "Contas Bancárias", icon: Landmark },
   ];
 
   const investSubItems = [
