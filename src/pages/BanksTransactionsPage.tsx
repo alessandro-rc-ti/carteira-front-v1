@@ -2,15 +2,25 @@ import { Link, useNavigate } from "react-router-dom";
 import { TransactionTable } from "@/components/TransactionTable";
 import { useEffect, useState } from "react";
 import { useBankStore } from "@/stores/bankStore";
+import { useTransactionStore } from "@/stores/transactionStore";
 
 export default function BanksTransactionsPage() {
   const navigate = useNavigate();
   const { banks, fetchBanks } = useBankStore();
+  const { transactions, loading, error, fetchAll, fetchByBank } = useTransactionStore();
   const [selectedBankId, setSelectedBankId] = useState<string>("");
 
   useEffect(() => {
     fetchBanks();
   }, []);
+
+  useEffect(() => {
+    if (selectedBankId) {
+      fetchByBank(selectedBankId);
+    } else {
+      fetchAll();
+    }
+  }, [selectedBankId]);
 
   return (
     <div>
@@ -43,7 +53,12 @@ export default function BanksTransactionsPage() {
       </div>
 
       <div className="card">
-        <TransactionTable showBankColumn={true} />
+        <TransactionTable
+          transactions={transactions}
+          loading={loading}
+          error={error}
+          showBankColumn={!selectedBankId}
+        />
       </div>
     </div>
   );
