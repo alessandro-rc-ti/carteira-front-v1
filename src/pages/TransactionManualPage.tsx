@@ -91,7 +91,7 @@ export function TransactionManualPage() {
         </Button>
         <div>
           <h1 className="text-xl font-bold text-slate-800 tracking-tight uppercase">Cadastro Manual</h1>
-          <div className="text-sm text-slate-500">Banco: {selectedBank ? `${selectedBank.name} — ${selectedBank.accountNumber}` : bankId}</div>
+          <div className="text-sm text-slate-500">Banco: {selectedBank ? selectedBank.bankName : bankId}</div>
         </div>
       </div>
       <p className="text-slate-500 mb-6 text-sm">Preencha os dados para adicionar uma transação manualmente ao banco selecionado.</p>

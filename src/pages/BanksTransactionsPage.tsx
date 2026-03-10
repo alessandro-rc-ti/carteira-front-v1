@@ -28,7 +28,7 @@ export default function BanksTransactionsPage() {
             <option value="">Selecionar banco (obrigatório)</option>
             {banks.map((b) => (
               <option key={b.id} value={b.id}>
-                {b.name} — {b.accountNumber}
+                {b.bankName}
               </option>
             ))}
           </select>
