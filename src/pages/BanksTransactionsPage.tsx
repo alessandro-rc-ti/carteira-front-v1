@@ -11,22 +11,31 @@ import {
   CardDescription,
   CardTitle,
 } from "@/components/ui/card";
+import {
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem,
+} from "@/components/ui/select";
+import { PlusCircle } from "lucide-react";
 
 export default function BanksTransactionsPage() {
   const navigate = useNavigate();
   const { banks, fetchBanks } = useBankStore();
   const { transactions, loading, error, fetchAll, fetchByBank } = useTransactionStore();
-  const [selectedBankId, setSelectedBankId] = useState<string>("");
+  const [selectedBankId, setSelectedBankId] = useState<string>("ALL");
+  const [showSelectBankModal, setShowSelectBankModal] = useState(false);
 
   useEffect(() => {
     fetchBanks();
   }, []);
 
   useEffect(() => {
-    if (selectedBankId) {
-      fetchByBank(selectedBankId);
-    } else {
+    if (selectedBankId === "ALL") {
       fetchAll();
+    } else {
+      fetchByBank(selectedBankId);
     }
   }, [selectedBankId]);
 
@@ -38,29 +47,33 @@ export default function BanksTransactionsPage() {
           <p className="text-slate-500 text-sm mt-1">Visualize e gerencie lançamentos por conta bancária</p>
         </div>
 
-        <div className="flex items-center gap-2 w-full sm:w-auto">
+        <div className="flex flex-wrap gap-2 items-center">
+          <Select value={selectedBankId} onValueChange={setSelectedBankId}>
+            <SelectTrigger className="w-[220px] bg-white shadow-sm border-slate-200">
+              <SelectValue placeholder="Filtrar por banco" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="ALL">Todos os bancos</SelectItem>
+              {banks.map((b) => (
+                <SelectItem key={b.id} value={b.id}>
+                  {b.bankName}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
           <Link to="/banks/transactions/import">
             <Button variant="outline" className="hidden sm:inline-flex">Importação</Button>
           </Link>
 
-          <select
-            value={selectedBankId}
-            onChange={(e) => setSelectedBankId(e.target.value)}
-            className="border rounded-md px-2 py-1 text-sm ml-2"
-          >
-            <option value="">Selecionar banco (opcional)</option>
-            {banks.map((b) => (
-              <option key={b.id} value={b.id}>
-                {b.bankName}
-              </option>
-            ))}
-          </select>
-
           <Button
-            onClick={() => navigate(`/banks/transactions/new?bankId=${selectedBankId}`)}
-            disabled={!selectedBankId}
+            onClick={() => {
+              if (selectedBankId === "ALL") setShowSelectBankModal(true);
+              else navigate(`/banks/transactions/new?bankId=${selectedBankId}`);
+            }}
             className="ml-2"
           >
+            <PlusCircle className="h-4 w-4 mr-2" />
             Nova transação
           </Button>
         </div>
