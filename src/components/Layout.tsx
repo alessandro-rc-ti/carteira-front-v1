@@ -5,7 +5,9 @@ import { Landmark, LayoutDashboard, TrendingUp, Search, Bell, Settings, UserCirc
 export function Layout() {
   const location = useLocation();
   const investmentsOpen = location.pathname.startsWith("/investments");
+  const banksOpen = location.pathname.startsWith("/banks");
   const [investExpanded, setInvestExpanded] = useState(investmentsOpen);
+  const [banksExpanded, setBanksExpanded] = useState(banksOpen);
 
   const topNavItems = [
     { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
@@ -16,6 +18,11 @@ export function Layout() {
     { href: "/investments/portfolio", label: "Patrimônio" },
     { href: "/investments/transactions", label: "Lançamentos" },
     { href: "/investments/institution-aliases", label: "Resumo Instituição" },
+  ];
+
+  const bankSubItems = [
+    { href: "/banks/accounts", label: "Contas" },
+    { href: "/banks/transactions", label: "Transações" },
   ];
 
   return (
@@ -52,6 +59,60 @@ export function Layout() {
               </Link>
             );
           })}
+
+          {/* Banks submenu */}
+          <div>
+            <button
+              onClick={() => setBanksExpanded((v) => !v)}
+              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-md transition-all ${
+                banksOpen
+                  ? "bg-blue-600 text-white font-medium"
+                  : "text-slate-400 hover:bg-slate-800 hover:text-slate-100"
+              }`}
+            >
+              <Landmark className="h-5 w-5 flex-shrink-0" />
+              <span className="flex-1 text-left">Contas Bancárias</span>
+              <ChevronDown
+                className={`h-4 w-4 flex-shrink-0 transition-transform ${banksExpanded ? "rotate-180" : ""}`}
+              />
+            </button>
+
+            {banksExpanded && (
+              <div className="mt-1 ml-4 pl-4 border-l border-slate-700 space-y-1">
+                {bankSubItems.map((sub) => {
+                  const isActive = location.pathname === sub.href;
+                  return (
+                    <Link
+                      key={sub.href}
+                      to={sub.href}
+                      className={`flex items-center gap-2 px-3 py-2 rounded-md text-sm transition-all ${
+                        isActive
+                          ? "bg-blue-500/20 text-blue-300 font-medium"
+                          : "text-slate-400 hover:bg-slate-800 hover:text-slate-100"
+                      }`}
+                    >
+                      {sub.label}
+                    </Link>
+                  );
+                })}
+                {/* Nested quick links under Transações */}
+                <div className="mt-1 ml-2 pl-2 space-y-1">
+                  <Link
+                    to="/banks/transactions/import"
+                    className="text-sm text-slate-400 hover:text-slate-100 block px-3 py-1"
+                  >
+                    Importação
+                  </Link>
+                  <Link
+                    to="/banks/transactions/new"
+                    className="text-sm text-slate-400 hover:text-slate-100 block px-3 py-1"
+                  >
+                    Nova transação
+                  </Link>
+                </div>
+              </div>
+            )}
+          </div>
 
           {/* Investimentos (com submenu) */}
           <div>

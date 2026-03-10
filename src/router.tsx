@@ -4,6 +4,8 @@ import {
   BankListPage,
   BankDetailPage,
   BankFormPage,
+  BanksTransactionsPage,
+  BanksAccountsPage,
   DashboardPage,
   TransactionUploadPage,
   TransactionManualPage,
@@ -31,6 +33,14 @@ export const router = createBrowserRouter([
         element: <BankListPage />,
       },
       {
+        path: "banks/accounts",
+        element: <BanksAccountsPage />,
+      },
+      {
+        path: "banks/transactions",
+        element: <BanksTransactionsPage />,
+      },
+      {
         path: "banks/new",
         element: <BankFormPage />,
       },
@@ -48,6 +58,14 @@ export const router = createBrowserRouter([
       },
       {
         path: "transaction-manual/:bankId",
+        element: <TransactionManualPage />,
+      },
+      {
+        path: "banks/transactions/import",
+        element: <TransactionUploadPage />,
+      },
+      {
+        path: "banks/transactions/new",
         element: <TransactionManualPage />,
       },
       {

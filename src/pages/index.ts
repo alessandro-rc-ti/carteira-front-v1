@@ -4,6 +4,8 @@ export { BankFormPage } from "./BankFormPage";
 export { DashboardPage } from "./DashboardPage";
 export { TransactionUploadPage } from "./TransactionUploadPage";
 export { TransactionManualPage } from "./TransactionManualPage";
+export { default as BanksTransactionsPage } from "./BanksTransactionsPage";
+export { default as BanksAccountsPage } from "./BanksAccountsPage";
 export { InvestmentListPage } from "./InvestmentListPage";
 export { InvestmentFormPage } from "./InvestmentFormPage";
 export { InstitutionAliasPage } from "./InstitutionAliasPage";
