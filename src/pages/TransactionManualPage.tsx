@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { ArrowLeft, PlusCircle } from "lucide-react";
 import { useNavigate, useSearchParams, useParams } from "react-router-dom";
 import { useBankStore } from "@/stores/bankStore";
+import { useTransactionStore } from "@/stores/transactionStore";
 
 export function TransactionManualPage() {
   const navigate = useNavigate();
@@ -41,12 +42,25 @@ export function TransactionManualPage() {
       return;
     }
     setLoading(true);
-    // TODO: Implementar envio para backend incluindo bankId
-    setTimeout(() => {
+    try {
+      const payload = {
+        date: form.date,
+        description: form.description,
+        amount: Number(form.amount),
+        type: form.type,
+      } as any;
+      const created = await useTransactionStore.getState().createTransaction(bankId, payload);
       setLoading(false);
-      alert("Transação cadastrada com sucesso!");
-      navigate(-1);
-    }, 1200);
+      if (created) {
+        alert("Transação cadastrada com sucesso!");
+        navigate(-1);
+      } else {
+        alert("Erro ao cadastrar transação.");
+      }
+    } catch (err) {
+      setLoading(false);
+      alert(err instanceof Error ? err.message : "Erro inesperado");
+    }
   };
 
   if (!bankId) {
