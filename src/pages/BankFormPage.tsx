@@ -23,8 +23,6 @@ import { toast } from "sonner";
 import { ArrowLeft, Plus, Trash2, Save } from "lucide-react";
 import {
   DebitValueSignHandling,
-  MatchStrategy,
-  ExtractStrategy,
 } from "@/types";
 import type { BankRequest, DescriptionSummaryPattern } from "@/types";
 
@@ -212,29 +210,38 @@ export function BankFormPage() {
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
       {/* Header */}
-      <div className="flex items-center gap-4">
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon"
-          onClick={() => navigate(isEditing ? `/banks/${id}` : "/banks")}
-        >
-          <ArrowLeft className="h-4 w-4" />
-        </Button>
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">
-            {isEditing ? "Editar Banco" : "Novo Banco"}
-          </h1>
-          <p className="text-sm text-muted-foreground">
-            {isEditing
-              ? "Atualize a configuração CSV do banco"
-              : "Configure um novo banco para importação CSV"}
-          </p>
+      <div className="flex items-center justify-between mb-2">
+        <div className="flex items-center gap-4">
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="hover:bg-slate-200"
+            onClick={() => navigate(isEditing ? `/banks/${id}` : "/banks")}
+          >
+            <ArrowLeft className="h-5 w-5 text-slate-600" />
+          </Button>
+          <div>
+            <h1 className="text-xl font-bold text-slate-800 tracking-tight uppercase">
+              {isEditing ? "Editar Banco" : "Novo Banco"}
+            </h1>
+            <p className="text-sm text-slate-500 mt-1">
+              {isEditing
+                ? "Atualize a configuração CSV do banco"
+                : "Configure um novo banco para importação CSV"}
+            </p>
+          </div>
+        </div>
+        <div className="hidden sm:flex items-center gap-2">
+           <Button type="button" variant="outline" onClick={() => navigate("/banks")}>Cancelar</Button>
+           <Button type="submit" disabled={submitting} className="bg-blue-600 hover:bg-blue-700">
+             <Save className="mr-2 h-4 w-4" /> Salvar Banco
+           </Button>
         </div>
       </div>
 
       {/* Basic Info */}
-      <Card>
+      <Card className="shadow-sm border-slate-200">
         <CardHeader>
           <CardTitle>Informações Básicas</CardTitle>
         </CardHeader>
@@ -373,195 +380,61 @@ export function BankFormPage() {
             Padrões de Sumarização ({patterns.length})
           </CardTitle>
           <CardDescription>
-            Regras para extrair descrições resumidas das transações CSV
+            Informe a descrição do CSV, a descrição resumida desejada e ative o ticker para extração automática de ativos B3.
+            O sistema gera a regra de mapeamento automaticamente.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          {patterns.map((pattern, idx) => (
-            <div key={idx} className="rounded-lg border p-4 space-y-3">
-              <div className="flex items-center justify-between">
-                <span className="text-sm font-medium text-muted-foreground">
-                  Padrão #{idx + 1}
-                </span>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => removePattern(idx)}
-                >
-                  <Trash2 className="h-4 w-4 text-destructive" />
-                </Button>
+          {patterns.length > 0 && (
+            <div className="rounded-md border">
+              <div className="grid grid-cols-[1fr_1fr_80px_40px] gap-2 px-4 py-2 bg-muted/50 text-xs font-medium text-muted-foreground">
+                <span>Descrição (CSV)</span>
+                <span>Descrição Resumida</span>
+                <span className="text-center">Ticker</span>
+                <span></span>
               </div>
-
-              <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
-                {/* Match Pattern */}
-                <div className="space-y-1">
-                  <Label className="text-xs">Padrão de Match *</Label>
+              {patterns.map((pattern, idx) => (
+                <div
+                  key={idx}
+                  className="grid grid-cols-[1fr_1fr_80px_40px] gap-2 px-4 py-2 border-t items-center"
+                >
                   <Input
                     value={pattern.matchPattern}
                     onChange={(e) =>
                       updatePattern(idx, "matchPattern", e.target.value)
                     }
-                    placeholder="Ex: PIX"
-                    className="h-8 text-sm"
+                    placeholder="Ex: Resgate: &quot;CDB PORQUINHO"
+                    className="h-8 text-sm font-mono"
                   />
-                </div>
-
-                {/* Match Strategy */}
-                <div className="space-y-1">
-                  <Label className="text-xs">Estratégia de Match</Label>
-                  <Select
-                    value={pattern.matchStrategy ?? "AUTO"}
-                    onValueChange={(v) =>
-                      updatePattern(
-                        idx,
-                        "matchStrategy",
-                        v === "AUTO" ? null : (v as MatchStrategy)
-                      )
-                    }
-                  >
-                    <SelectTrigger className="h-8 text-sm">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="AUTO">Automático</SelectItem>
-                      {Object.values(MatchStrategy).map((v) => (
-                        <SelectItem key={v} value={v}>
-                          {v}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                {/* Extract Strategy */}
-                <div className="space-y-1">
-                  <Label className="text-xs">Estratégia de Extração</Label>
-                  <Select
-                    value={pattern.extractStrategy ?? "AUTO"}
-                    onValueChange={(v) =>
-                      updatePattern(
-                        idx,
-                        "extractStrategy",
-                        v === "AUTO" ? null : (v as ExtractStrategy)
-                      )
-                    }
-                  >
-                    <SelectTrigger className="h-8 text-sm">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="AUTO">Automático</SelectItem>
-                      {Object.values(ExtractStrategy).map((v) => (
-                        <SelectItem key={v} value={v}>
-                          {v}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                {/* Extract Regex */}
-                <div className="space-y-1">
-                  <Label className="text-xs">Regex de Extração</Label>
-                  <Input
-                    value={pattern.extractRegex ?? ""}
-                    onChange={(e) =>
-                      updatePattern(idx, "extractRegex", e.target.value || null)
-                    }
-                    placeholder="e.g., PIX\\s+-\\s+(.*)"
-                    className="h-8 font-mono text-xs"
-                  />
-                </div>
-
-                {/* Fixed Summary */}
-                <div className="space-y-1">
-                  <Label className="text-xs">Resumo Fixo</Label>
                   <Input
                     value={pattern.fixedSummary ?? ""}
                     onChange={(e) =>
                       updatePattern(idx, "fixedSummary", e.target.value || null)
                     }
-                    placeholder="e.g., Resgate {1}"
+                    placeholder="Ex: Resgate Porquinho"
                     className="h-8 text-sm"
                   />
+                  <div className="flex justify-center">
+                    <Switch
+                      checked={pattern.extractTicker ?? false}
+                      onCheckedChange={(checked) =>
+                        updatePattern(idx, "extractTicker", checked)
+                      }
+                    />
+                  </div>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => removePattern(idx)}
+                    className="h-8 w-8"
+                  >
+                    <Trash2 className="h-4 w-4 text-destructive" />
+                  </Button>
                 </div>
-
-                {/* Similarity Threshold */}
-                <div className="space-y-1">
-                  <Label className="text-xs">Limite de Similaridade</Label>
-                  <Input
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    max="1"
-                    value={pattern.similarityThreshold ?? ""}
-                    onChange={(e) =>
-                      updatePattern(
-                        idx,
-                        "similarityThreshold",
-                        e.target.value ? parseFloat(e.target.value) : null
-                      )
-                    }
-                    placeholder="0.0 - 1.0"
-                    className="h-8 text-sm"
-                  />
-                </div>
-
-                {/* Extract Delimiter */}
-                <div className="space-y-1">
-                  <Label className="text-xs">Delimitador de Extração</Label>
-                  <Input
-                    value={pattern.extractDelimiter ?? ""}
-                    onChange={(e) =>
-                      updatePattern(
-                        idx,
-                        "extractDelimiter",
-                        e.target.value || null
-                      )
-                    }
-                    placeholder="e.g., -"
-                    className="h-8 text-sm"
-                  />
-                </div>
-
-                {/* Extract Start */}
-                <div className="space-y-1">
-                  <Label className="text-xs">Marcador Início</Label>
-                  <Input
-                    value={pattern.extractStart ?? ""}
-                    onChange={(e) =>
-                      updatePattern(idx, "extractStart", e.target.value || null)
-                    }
-                    className="h-8 text-sm"
-                  />
-                </div>
-
-                {/* Extract End */}
-                <div className="space-y-1">
-                  <Label className="text-xs">Marcador Fim</Label>
-                  <Input
-                    value={pattern.extractEnd ?? ""}
-                    onChange={(e) =>
-                      updatePattern(idx, "extractEnd", e.target.value || null)
-                    }
-                    className="h-8 text-sm"
-                  />
-                </div>
-              </div>
-
-              {/* Extract Ticker toggle */}
-              <div className="flex items-center gap-2">
-                <Switch
-                  checked={pattern.extractTicker ?? false}
-                  onCheckedChange={(checked) =>
-                    updatePattern(idx, "extractTicker", checked)
-                  }
-                />
-                <Label className="text-xs">Extrair Ticker B3</Label>
-              </div>
+              ))}
             </div>
-          ))}
+          )}
 
           <Button type="button" variant="outline" onClick={addPattern}>
             <Plus className="mr-2 h-4 w-4" />

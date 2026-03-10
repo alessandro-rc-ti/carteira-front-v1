@@ -1,6 +1,17 @@
 import { createBrowserRouter, Navigate } from "react-router-dom";
 import { Layout } from "@/components/Layout";
-import { BankListPage, BankDetailPage, BankFormPage } from "@/pages";
+import {
+  BankListPage,
+  BankDetailPage,
+  BankFormPage,
+  DashboardPage,
+  TransactionUploadPage,
+  TransactionManualPage,
+  InvestmentListPage,
+  InvestmentFormPage,
+  InstitutionAliasPage,
+  InvestmentPortfolioPage,
+} from "@/pages";
 
 export const router = createBrowserRouter([
   {
@@ -9,7 +20,11 @@ export const router = createBrowserRouter([
     children: [
       {
         index: true,
-        element: <Navigate to="/banks" replace />,
+        element: <Navigate to="/dashboard" replace />,
+      },
+      {
+        path: "dashboard",
+        element: <DashboardPage />,
       },
       {
         path: "banks",
@@ -26,6 +41,34 @@ export const router = createBrowserRouter([
       {
         path: "banks/:id/edit",
         element: <BankFormPage />,
+      },
+      {
+        path: "transaction-upload/:bankId",
+        element: <TransactionUploadPage />,
+      },
+      {
+        path: "transaction-manual/:bankId",
+        element: <TransactionManualPage />,
+      },
+      {
+        path: "investments/transactions",
+        element: <InvestmentListPage />,
+      },
+      {
+        path: "investments/portfolio",
+        element: <InvestmentPortfolioPage />,
+      },
+      {
+        path: "investments/transactions/new",
+        element: <InvestmentFormPage />,
+      },
+      {
+        path: "investments/transactions/:id/edit",
+        element: <InvestmentFormPage />,
+      },
+      {
+        path: "investments/institution-aliases",
+        element: <InstitutionAliasPage />,
       },
     ],
   },

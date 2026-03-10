@@ -83,6 +83,7 @@ export interface UnmappedDescription {
 export interface ManualMapping {
   originalDescription: string;
   summary: string;
+  extractTicker?: boolean;
 }
 
 export interface CsvAnalysisResponse {

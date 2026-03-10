@@ -20,20 +20,24 @@ import {
 } from "@/components/ui/table";
 import { Separator } from "@/components/ui/separator";
 import { CsvImportSection } from "@/components/CsvImportSection";
+import { TransactionTable } from "@/components/TransactionTable";
 import { ArrowLeft, Pencil } from "lucide-react";
+import { useTransactionStore } from "@/stores/transactionStore";
 
 export function BankDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { selectedBank, loading, fetchBankById, clearSelectedBank } =
     useBankStore();
+  const { transactions, loading: loadingTx, error, fetchByBank } = useTransactionStore();
 
   useEffect(() => {
     if (id) {
       fetchBankById(id);
+      fetchByBank(id);
     }
     return () => clearSelectedBank();
-  }, [id, fetchBankById, clearSelectedBank]);
+  }, [id, fetchBankById, clearSelectedBank, fetchByBank]);
 
   if (loading && !selectedBank) {
     return (
@@ -57,22 +61,23 @@ export function BankDetailPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between mb-2">
         <div className="flex items-center gap-4">
-          <Button variant="ghost" size="icon" onClick={() => navigate("/banks")}>
-            <ArrowLeft className="h-4 w-4" />
+          <Button variant="ghost" size="icon" className="hover:bg-slate-200" onClick={() => navigate("/banks")}>
+            <ArrowLeft className="h-5 w-5 text-slate-600" />
           </Button>
           <div>
-            <h1 className="text-2xl font-bold tracking-tight">
+            <h1 className="text-xl font-bold text-slate-800 tracking-tight uppercase">
               {selectedBank.bankName}
             </h1>
-            <p className="text-sm text-muted-foreground">
+            <p className="text-sm text-slate-500 mt-1">
               Criado em {new Date(selectedBank.createdAt).toLocaleDateString("pt-BR")}
             </p>
           </div>
         </div>
         <Button
           variant="outline"
+          className="shadow-sm border-slate-200"
           onClick={() => navigate(`/banks/${selectedBank.id}/edit`)}
         >
           <Pencil className="mr-2 h-4 w-4" />
@@ -214,6 +219,21 @@ export function BankDetailPage() {
 
       {/* CSV Import Section */}
       <CsvImportSection bankId={selectedBank.id} />
+
+      {/* Transactions */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Transações Importadas</CardTitle>
+          <CardDescription>Lista de transações importadas deste banco</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <TransactionTable
+            transactions={transactions}
+            loading={loadingTx}
+            error={error}
+          />
+        </CardContent>
+      </Card>
     </div>
   );
 }

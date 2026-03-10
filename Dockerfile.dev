@@ -7,7 +7,12 @@ WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci
 
+# Entrypoint script em /usr/local/bin (fora do volume montado)
+# Sincroniza dependências ao iniciar o container caso package.json mude
+RUN printf '#!/bin/sh\nset -e\nif [ -f /app/package.json ]; then\n  echo "Checking dependencies..."\n  npm install --prefer-offline 2>/dev/null || npm install\n  echo "Dependencies up to date."\nfi\nexec "$@"\n' > /usr/local/bin/entrypoint.sh && chmod +x /usr/local/bin/entrypoint.sh
+
 # At runtime the project source is mounted into /app
 # Vite dev server with HMR
 EXPOSE 5173
+ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
 CMD ["npx", "vite", "--host", "0.0.0.0", "--port", "5173"]

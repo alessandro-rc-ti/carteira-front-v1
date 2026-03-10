@@ -19,6 +19,7 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+import { Switch } from "@/components/ui/switch";
 import { transactionService } from "@/services";
 import type {
   CsvAnalysisResponse,
@@ -65,6 +66,7 @@ export function CsvImportSection({ bankId }: CsvImportSectionProps) {
         result.unmappedDescriptions.map((u) => ({
           originalDescription: u.originalDescription,
           summary: "",
+          extractTicker: false,
         }))
       );
       setStep("analysis");
@@ -76,9 +78,15 @@ export function CsvImportSection({ bankId }: CsvImportSectionProps) {
     }
   };
 
-  const handleMappingChange = (index: number, summary: string) => {
+  const handleMappingChange = (index: number, field: "summary", value: string) => {
     setMappings((prev) =>
-      prev.map((m, i) => (i === index ? { ...m, summary } : m))
+      prev.map((m, i) => (i === index ? { ...m, [field]: value } : m))
+    );
+  };
+
+  const handleTickerToggle = (index: number, checked: boolean) => {
+    setMappings((prev) =>
+      prev.map((m, i) => (i === index ? { ...m, extractTicker: checked } : m))
     );
   };
 
@@ -212,7 +220,8 @@ export function CsvImportSection({ bankId }: CsvImportSectionProps) {
                   Mapeamentos Manuais (opcional)
                 </h3>
                 <p className="text-xs text-muted-foreground">
-                  Informe um resumo para as descrições não mapeadas. Deixe em branco para ignorar.
+                  Informe um resumo para as descrições não mapeadas. O sistema criará automaticamente uma regra de mapeamento.
+                  Deixe em branco para ignorar.
                 </p>
                 <div className="max-h-80 overflow-auto rounded-md border">
                   <Table>
@@ -220,7 +229,8 @@ export function CsvImportSection({ bankId }: CsvImportSectionProps) {
                       <TableRow>
                         <TableHead>Descrição Original</TableHead>
                         <TableHead className="w-20 text-center">Qtd</TableHead>
-                        <TableHead>Resumo</TableHead>
+                        <TableHead>Descrição Resumida</TableHead>
+                        <TableHead className="w-20 text-center">Ticker</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -237,9 +247,17 @@ export function CsvImportSection({ bankId }: CsvImportSectionProps) {
                               placeholder="Digite o resumo..."
                               value={mappings[idx]?.summary ?? ""}
                               onChange={(e) =>
-                                handleMappingChange(idx, e.target.value)
+                                handleMappingChange(idx, "summary", e.target.value)
                               }
                               className="h-8 text-sm"
+                            />
+                          </TableCell>
+                          <TableCell className="text-center">
+                            <Switch
+                              checked={mappings[idx]?.extractTicker ?? false}
+                              onCheckedChange={(checked) =>
+                                handleTickerToggle(idx, checked)
+                              }
                             />
                           </TableCell>
                         </TableRow>

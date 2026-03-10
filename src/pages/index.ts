@@ -1,3 +1,10 @@
 export { BankListPage } from "./BankListPage";
 export { BankDetailPage } from "./BankDetailPage";
 export { BankFormPage } from "./BankFormPage";
+export { DashboardPage } from "./DashboardPage";
+export { TransactionUploadPage } from "./TransactionUploadPage";
+export { TransactionManualPage } from "./TransactionManualPage";
+export { InvestmentListPage } from "./InvestmentListPage";
+export { InvestmentFormPage } from "./InvestmentFormPage";
+export { InstitutionAliasPage } from "./InstitutionAliasPage";
+export { InvestmentPortfolioPage } from "./InvestmentPortfolioPage";
