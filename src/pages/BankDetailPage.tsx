@@ -19,25 +19,21 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Separator } from "@/components/ui/separator";
-import { CsvImportSection } from "@/components/CsvImportSection";
-import { TransactionTable } from "@/components/TransactionTable";
+// CSV import and the transactions table removed per request
 import { ArrowLeft, Pencil } from "lucide-react";
-import { useTransactionStore } from "@/stores/transactionStore";
+// useTransactionStore removed
 
 export function BankDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { selectedBank, loading, fetchBankById, clearSelectedBank } =
-    useBankStore();
-  const { transactions, loading: loadingTx, error, fetchByBank } = useTransactionStore();
+  const { selectedBank, loading, fetchBankById, clearSelectedBank } = useBankStore();
 
   useEffect(() => {
     if (id) {
       fetchBankById(id);
-      fetchByBank(id);
     }
     return () => clearSelectedBank();
-  }, [id, fetchBankById, clearSelectedBank, fetchByBank]);
+  }, [id, fetchBankById, clearSelectedBank]);
 
   if (loading && !selectedBank) {
     return (
@@ -217,23 +213,7 @@ export function BankDetailPage() {
         </CardContent>
       </Card>
 
-      {/* CSV Import Section */}
-      <CsvImportSection bankId={selectedBank.id} />
-
-      {/* Transactions */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Transações Importadas</CardTitle>
-          <CardDescription>Lista de transações importadas deste banco</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <TransactionTable
-            transactions={transactions}
-            loading={loadingTx}
-            error={error}
-          />
-        </CardContent>
-      </Card>
+      {/* CSV import and transactions list removed as requested */}
     </div>
   );
 }
