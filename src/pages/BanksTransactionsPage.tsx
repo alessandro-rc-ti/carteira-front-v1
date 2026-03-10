@@ -3,6 +3,14 @@ import { TransactionTable } from "@/components/TransactionTable";
 import { useEffect, useState } from "react";
 import { useBankStore } from "@/stores/bankStore";
 import { useTransactionStore } from "@/stores/transactionStore";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardDescription,
+  CardTitle,
+} from "@/components/ui/card";
 
 export default function BanksTransactionsPage() {
   const navigate = useNavigate();
@@ -23,43 +31,55 @@ export default function BanksTransactionsPage() {
   }, [selectedBankId]);
 
   return (
-    <div>
-      <div className="flex items-center justify-between mb-4">
-        <h1 className="text-xl font-semibold">Transações</h1>
-        <div className="flex items-center gap-2">
-          <Link to="/banks/transactions/import" className="btn btn-sm">
-            Importação
+    <div className="space-y-6">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between mb-2">
+        <div>
+          <h1 className="text-xl font-bold text-slate-800 tracking-tight uppercase">Transações</h1>
+          <p className="text-slate-500 text-sm mt-1">Visualize e gerencie lançamentos por conta bancária</p>
+        </div>
+
+        <div className="flex items-center gap-2 w-full sm:w-auto">
+          <Link to="/banks/transactions/import">
+            <Button variant="outline" className="hidden sm:inline-flex">Importação</Button>
           </Link>
+
           <select
             value={selectedBankId}
             onChange={(e) => setSelectedBankId(e.target.value)}
-            className="border rounded-md px-2 py-1 text-sm"
+            className="border rounded-md px-2 py-1 text-sm ml-2"
           >
-            <option value="">Selecionar banco (obrigatório)</option>
+            <option value="">Selecionar banco (opcional)</option>
             {banks.map((b) => (
               <option key={b.id} value={b.id}>
                 {b.bankName}
               </option>
             ))}
           </select>
-          <button
-            className={`btn btn-primary btn-sm ${!selectedBankId ? "opacity-60 cursor-not-allowed" : ""}`}
-            disabled={!selectedBankId}
+
+          <Button
             onClick={() => navigate(`/banks/transactions/new?bankId=${selectedBankId}`)}
+            disabled={!selectedBankId}
+            className="ml-2"
           >
             Nova transação
-          </button>
+          </Button>
         </div>
       </div>
 
-      <div className="card">
-        <TransactionTable
-          transactions={transactions}
-          loading={loading}
-          error={error}
-          showBankColumn={!selectedBankId}
-        />
-      </div>
+      <Card>
+        <CardHeader>
+          <CardTitle>Lista de Transações</CardTitle>
+          <CardDescription>Filtros aplicáveis: por conta, período e tipo</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <TransactionTable
+            transactions={transactions}
+            loading={loading}
+            error={error}
+            showBankColumn={!selectedBankId}
+          />
+        </CardContent>
+      </Card>
     </div>
   );
 }
