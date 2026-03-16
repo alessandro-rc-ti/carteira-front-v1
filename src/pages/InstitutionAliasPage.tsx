@@ -31,7 +31,7 @@ import {
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Plus, Pencil, Trash2, ArrowRightLeft } from "lucide-react";
-import { toast } from "sonner";
+import { showSuccess, showError } from "@/lib/toast";
 
 export function InstitutionAliasPage() {
   const { aliases, loading, fetchAliases, createAlias, updateAlias, deleteAlias } =
@@ -63,7 +63,7 @@ export function InstitutionAliasPage() {
 
   const handleSubmit = async () => {
     if (!aliasValue.trim() || !normalizedName.trim()) {
-      toast.error("Preencha ambos os campos");
+      showError("Preencha ambos os campos");
       return;
     }
     setSubmitting(true);
@@ -71,14 +71,14 @@ export function InstitutionAliasPage() {
       const request = { alias: aliasValue.trim(), normalizedName: normalizedName.trim() };
       if (editingId) {
         await updateAlias(editingId, request);
-        toast.success("Alias atualizado com sucesso");
+        showSuccess("Alias atualizado com sucesso");
       } else {
         await createAlias(request);
-        toast.success("Alias criado com sucesso");
+        showSuccess("Alias criado com sucesso");
       }
       setDialogOpen(false);
     } catch {
-      toast.error(editingId ? "Falha ao atualizar alias" : "Falha ao criar alias");
+      showError(editingId ? "Falha ao atualizar alias" : "Falha ao criar alias");
     } finally {
       setSubmitting(false);
     }
@@ -87,9 +87,9 @@ export function InstitutionAliasPage() {
   const handleDelete = async (id: string, alias: string) => {
     try {
       await deleteAlias(id);
-      toast.success(`Alias "${alias}" excluído com sucesso`);
+      showSuccess(`Alias "${alias}" excluído com sucesso`);
     } catch {
-      toast.error("Falha ao excluir alias");
+      showError("Falha ao excluir alias");
     }
   };
 

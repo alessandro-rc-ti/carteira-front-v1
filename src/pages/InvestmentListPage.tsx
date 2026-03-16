@@ -33,7 +33,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Plus, Pencil, Trash2, Upload, FileX } from "lucide-react";
-import { toast } from "sonner";
+import { showSuccess, showError } from "@/lib/toast";
 import { investmentService } from "@/services";
 import { InvestmentCategoryLabels, InvestmentOrderTypeLabels } from "@/types/investment";
 import type { InvestmentCategory, InvestmentOrderType } from "@/types/investment";
@@ -58,10 +58,10 @@ export function InvestmentListPage() {
     setDeleteLoading(true);
     try {
       await investmentService.deleteAllInvestmentsAndAliases();
-      toast.success("Todos os investimentos e aliases foram deletados");
+      showSuccess("Todos os investimentos e aliases foram deletados");
       fetchInvestments();
     } catch {
-      toast.error("Falha ao deletar investimentos e aliases");
+      showError("Falha ao deletar investimentos e aliases");
     } finally {
       setDeleteLoading(false);
     }
@@ -72,10 +72,10 @@ export function InvestmentListPage() {
     setDeleteLoading(true);
     try {
       await investmentService.deleteAllInvestments();
-      toast.success("Todos os investimentos foram deletados");
+      showSuccess("Todos os investimentos foram deletados");
       fetchInvestments();
     } catch {
-      toast.error("Falha ao deletar investimentos");
+      showError("Falha ao deletar investimentos");
     } finally {
       setDeleteLoading(false);
     }
@@ -83,18 +83,18 @@ export function InvestmentListPage() {
 
   const handleDeleteByFile = async () => {
     if (!deleteFileName.trim()) {
-      toast.error("Informe o nome do arquivo");
+      showError("Informe o nome do arquivo");
       return;
     }
     setDeleteLoading(true);
     try {
       await investmentService.deleteInvestmentsByFile(deleteFileName.trim());
-      toast.success(`Investimentos do arquivo "${deleteFileName}" deletados`);
+      showSuccess(`Investimentos do arquivo "${deleteFileName}" deletados`);
       setDeleteModalOpen(false);
       setDeleteFileName("");
       fetchInvestments();
     } catch {
-      toast.error("Falha ao deletar investimentos por arquivo");
+      showError("Falha ao deletar investimentos por arquivo");
     } finally {
       setDeleteLoading(false);
     }
@@ -103,9 +103,9 @@ export function InvestmentListPage() {
   const handleDelete = async (id: string, ticker: string) => {
     try {
       await deleteInvestment(id);
-      toast.success(`Investimento "${ticker}" excluído com sucesso`);
+      showSuccess(`Investimento "${ticker}" excluído com sucesso`);
     } catch {
-      toast.error("Falha ao excluir investimento");
+      showError("Falha ao excluir investimento");
     }
   };
 

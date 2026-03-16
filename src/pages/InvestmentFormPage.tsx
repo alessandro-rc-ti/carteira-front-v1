@@ -19,7 +19,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { toast } from "sonner";
+import { showSuccess, showError } from "@/lib/toast";
 import { ArrowLeft, Save } from "lucide-react";
 import {
   InvestmentCategory,
@@ -91,23 +91,23 @@ export function InvestmentFormPage() {
     e.preventDefault();
 
     if (!ticker.trim()) {
-      toast.error("Ticker é obrigatório");
+      showError("Ticker é obrigatório");
       return;
     }
     if (!quantity || parseFloat(quantity) <= 0) {
-      toast.error("Quantidade deve ser maior que zero");
+      showError("Quantidade deve ser maior que zero");
       return;
     }
     if (!unitPrice || parseFloat(unitPrice) <= 0) {
-      toast.error("Preço unitário deve ser maior que zero");
+      showError("Preço unitário deve ser maior que zero");
       return;
     }
     if (!purchaseDate) {
-      toast.error("Data da compra é obrigatória");
+      showError("Data da compra é obrigatória");
       return;
     }
     if (!institution.trim()) {
-      toast.error("Instituição é obrigatória");
+      showError("Instituição é obrigatória");
       return;
     }
 
@@ -128,15 +128,15 @@ export function InvestmentFormPage() {
     try {
       if (isEditing && id) {
         await updateInvestment(id, request);
-        toast.success("Investimento atualizado com sucesso");
+        showSuccess("Investimento atualizado com sucesso");
         navigate("/investments/transactions");
       } else {
         await createInvestment(request);
-        toast.success("Investimento criado com sucesso");
+        showSuccess("Investimento criado com sucesso");
         navigate("/investments/transactions");
       }
     } catch {
-      toast.error(isEditing ? "Falha ao atualizar investimento" : "Falha ao criar investimento");
+      showError(isEditing ? "Falha ao atualizar investimento" : "Falha ao criar investimento");
     } finally {
       setSubmitting(false);
     }

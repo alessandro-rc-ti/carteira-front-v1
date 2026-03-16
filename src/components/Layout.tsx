@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Outlet, Link, useLocation } from "react-router-dom";
-import { Landmark, LayoutDashboard, TrendingUp, Search, Bell, Settings, UserCircle, LogOut, Menu, ChevronDown } from "lucide-react";
+import useI18nStore from "@/stores/i18nStore";
+import { Landmark, LayoutDashboard, TrendingUp, Search, Bell, Settings, UserCircle, LogOut, Menu, ChevronDown, Wallet, Activity } from "lucide-react";
 
 export function Layout() {
   const location = useLocation();
@@ -9,19 +10,22 @@ export function Layout() {
   const [investExpanded, setInvestExpanded] = useState(investmentsOpen);
   const [banksExpanded, setBanksExpanded] = useState(banksOpen);
 
+  const t = useI18nStore((s) => s.t);
+
   const topNavItems = [
-    { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+    { href: "/dashboard", label: t('layout.nav.dashboard','Dashboard'), icon: LayoutDashboard },
   ];
 
   const investSubItems = [
-    { href: "/investments/portfolio", label: "Patrimônio" },
-    { href: "/investments/transactions", label: "Lançamentos" },
-    { href: "/investments/institution-aliases", label: "Resumo Instituição" },
+    { href: "/investments/portfolio", label: t('layout.invest.portfolio','Patrimônio'), icon: TrendingUp },
+    { href: "/investments/transactions", label: t('layout.invest.transactions','Lançamentos'), icon: Activity },
+    { href: "/investments/institution-aliases", label: t('layout.invest.institutionSummary','Resumo Instituição'), icon: Landmark },
   ];
 
   const bankSubItems = [
-    { href: "/banks/accounts", label: "Contas" },
-    { href: "/banks/transactions", label: "Transações" },
+    { href: "/banks/dashboard", label: t('layout.banks.dashboard','Dashboard da Conta'), icon: LayoutDashboard },
+    { href: "/banks/accounts", label: t('layout.banks.accounts','Contas'), icon: Wallet },
+    { href: "/banks/transactions", label: t('layout.banks.transactions','Transações'), icon: Activity },
   ];
 
   return (
@@ -80,6 +84,7 @@ export function Layout() {
               <div className="mt-1 ml-4 pl-4 border-l border-slate-700 space-y-1">
                 {bankSubItems.map((sub) => {
                   const isActive = location.pathname === sub.href;
+                  const Icon = (sub as any).icon;
                   return (
                     <Link
                       key={sub.href}
@@ -90,25 +95,12 @@ export function Layout() {
                           : "text-slate-400 hover:bg-slate-800 hover:text-slate-100"
                       }`}
                     >
-                      {sub.label}
+                      {Icon && <Icon className="h-4 w-4 text-slate-300" />}
+                      <span>{sub.label}</span>
                     </Link>
                   );
                 })}
-                {/* Nested quick links under Transações */}
-                <div className="mt-1 ml-2 pl-2 space-y-1">
-                  <Link
-                    to="/banks/transactions/import"
-                    className="text-sm text-slate-400 hover:text-slate-100 block px-3 py-1"
-                  >
-                    Importação
-                  </Link>
-                  <Link
-                    to="/banks/transactions/new"
-                    className="text-sm text-slate-400 hover:text-slate-100 block px-3 py-1"
-                  >
-                    Nova transação
-                  </Link>
-                </div>
+                
               </div>
             )}
           </div>
@@ -134,6 +126,7 @@ export function Layout() {
               <div className="mt-1 ml-4 pl-4 border-l border-slate-700 space-y-1">
                 {investSubItems.map((sub) => {
                   const isActive = location.pathname === sub.href;
+                  const Icon = (sub as any).icon;
                   return (
                     <Link
                       key={sub.href}
@@ -144,7 +137,8 @@ export function Layout() {
                           : "text-slate-400 hover:bg-slate-800 hover:text-slate-100"
                       }`}
                     >
-                      {sub.label}
+                      {Icon && <Icon className="h-4 w-4 text-slate-300" />}
+                      <span>{sub.label}</span>
                     </Link>
                   );
                 })}
@@ -157,7 +151,7 @@ export function Layout() {
         <div className="p-4 border-t border-slate-800">
           <button className="flex items-center gap-3 text-slate-400 hover:text-white transition-colors w-full px-3 py-2">
             <LogOut className="h-5 w-5" />
-            <span>Sair</span>
+            <span>{t('layout.sidebar.logout','Sair')}</span>
           </button>
         </div>
       </aside>
@@ -175,7 +169,7 @@ export function Layout() {
               <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-slate-400" />
               <input 
                 type="text" 
-                placeholder="Pesquisar..." 
+                placeholder={t('layout.topbar.search.placeholder','Pesquisar...')} 
                 className="h-9 w-64 rounded-md border border-slate-200 pl-9 pr-4 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 bg-slate-50"
               />
             </div>

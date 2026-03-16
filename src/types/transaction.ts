@@ -8,6 +8,7 @@ export interface Transaction {
   type: string;
   category: string | null;
   origin: string | null;
+  importFileName?: string | null;
   bankId: string;
   bankName: string;
   createdAt: string;

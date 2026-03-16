@@ -9,6 +9,13 @@ export const DebitValueSignHandling = {
 export type DebitValueSignHandling =
   (typeof DebitValueSignHandling)[keyof typeof DebitValueSignHandling];
 
+export const CsvSkipStrategy = {
+  LINE_NUMBER: "LINE_NUMBER",
+  STARTS_WITH_TEXT: "STARTS_WITH_TEXT",
+} as const;
+export type CsvSkipStrategy =
+  (typeof CsvSkipStrategy)[keyof typeof CsvSkipStrategy];
+
 export const MatchStrategy = {
   PREFIX: "PREFIX",
   CONTAINS: "CONTAINS",
@@ -54,6 +61,9 @@ export interface BankRequest {
   debitValueSignHandling: DebitValueSignHandling;
   creditTypeIdentifier?: string | null;
   debitTypeIdentifier?: string | null;
+  csvSkipStrategy?: CsvSkipStrategy | null;
+  csvSkipValue?: string | null;
+  csvSimilarityGroupingThreshold?: number | null;
   descriptionSummaryPatterns: DescriptionSummaryPattern[];
 }
 
@@ -67,6 +77,9 @@ export interface BankResponse {
   debitValueSignHandling: DebitValueSignHandling;
   creditTypeIdentifier?: string | null;
   debitTypeIdentifier?: string | null;
+  csvSkipStrategy?: CsvSkipStrategy | null;
+  csvSkipValue?: string | null;
+  csvSimilarityGroupingThreshold?: number | null;
   descriptionSummaryPatterns: DescriptionSummaryPattern[];
   createdAt: string;
   updatedAt: string;
@@ -78,10 +91,12 @@ export interface BankResponse {
 export interface UnmappedDescription {
   originalDescription: string;
   occurrences: number;
+  groupedDescriptions: string[];
 }
 
 export interface ManualMapping {
   originalDescription: string;
+  textIdentifier: string;
   summary: string;
   extractTicker?: boolean;
 }
@@ -89,13 +104,20 @@ export interface ManualMapping {
 export interface CsvAnalysisResponse {
   totalRows: number;
   autoMapped: number;
+  repeatedRows: number;
+  notFoundTickerCount: number;
+  fileNameAlreadyImported: boolean;
   unmappedDescriptions: UnmappedDescription[];
+  notFoundTickerDescriptions: string[];
 }
 
 export interface CsvImportResponse {
   totalRows: number;
   imported: number;
   ignored: number;
+  repeatedRowsIgnored: number;
+  notFoundTickerCount: number;
   warnings: string[];
   unmatchedDescriptions: string[];
+  notFoundTickerDescriptions: string[];
 }

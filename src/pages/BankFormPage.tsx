@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { useBankStore } from "@/stores";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -19,10 +19,11 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
-import { toast } from "sonner";
+import { showSuccess, showError } from "@/lib/toast";
 import { ArrowLeft, Plus, Trash2, Save } from "lucide-react";
 import {
   DebitValueSignHandling,
+  CsvSkipStrategy,
 } from "@/types";
 import type { BankRequest, DescriptionSummaryPattern } from "@/types";
 
@@ -49,6 +50,8 @@ const DEFAULT_HEADER_MAPPING: Record<string, string> = {
 export function BankFormPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
+  const returnTo = (location.state as { returnTo?: string } | null)?.returnTo;
   const { selectedBank, loading, fetchBankById, createBank, updateBank, clearSelectedBank } =
     useBankStore();
   const isEditing = Boolean(id);
@@ -62,6 +65,9 @@ export function BankFormPage() {
     useState<DebitValueSignHandling>(DebitValueSignHandling.NO_CHANGE);
   const [creditTypeIdentifier, setCreditTypeIdentifier] = useState("");
   const [debitTypeIdentifier, setDebitTypeIdentifier] = useState("");
+  const [csvSkipStrategy, setCsvSkipStrategy] = useState<CsvSkipStrategy | "">("");
+  const [csvSkipValue, setCsvSkipValue] = useState("");
+  const [csvSimilarityGroupingThresholdPercent, setCsvSimilarityGroupingThresholdPercent] = useState("60");
   const [headerMapping, setHeaderMapping] = useState<Record<string, string>>(
     { ...DEFAULT_HEADER_MAPPING }
   );
@@ -86,6 +92,11 @@ export function BankFormPage() {
       setDebitValueSignHandling(selectedBank.debitValueSignHandling);
       setCreditTypeIdentifier(selectedBank.creditTypeIdentifier ?? "");
       setDebitTypeIdentifier(selectedBank.debitTypeIdentifier ?? "");
+      setCsvSkipStrategy((selectedBank.csvSkipStrategy as CsvSkipStrategy) ?? "");
+      setCsvSkipValue(selectedBank.csvSkipValue ?? "");
+      setCsvSimilarityGroupingThresholdPercent(
+        String(Math.round((selectedBank.csvSimilarityGroupingThreshold ?? 0.6) * 100))
+      );
       setHeaderMapping(
         Object.keys(selectedBank.csvHeaderMapping).length > 0
           ? { ...selectedBank.csvHeaderMapping }
@@ -155,6 +166,12 @@ export function BankFormPage() {
       return;
     }
 
+    const thresholdPercent = Number(csvSimilarityGroupingThresholdPercent);
+    if (Number.isNaN(thresholdPercent) || thresholdPercent <= 0 || thresholdPercent > 100) {
+      showError("Percentual de similaridade deve estar entre 1 e 100");
+      return;
+    }
+
     const bankRequest: BankRequest = {
       bankName: bankName.trim(),
       dateFormatPattern,
@@ -163,6 +180,9 @@ export function BankFormPage() {
       debitValueSignHandling,
       creditTypeIdentifier: creditTypeIdentifier || null,
       debitTypeIdentifier: debitTypeIdentifier || null,
+      csvSkipStrategy: csvSkipStrategy || null,
+      csvSkipValue: csvSkipValue.trim() || null,
+      csvSimilarityGroupingThreshold: thresholdPercent / 100,
       csvHeaderMapping: Object.fromEntries(
         Object.entries(headerMapping).filter(([k, v]) => k.trim() && v.trim())
       ),
@@ -185,15 +205,15 @@ export function BankFormPage() {
     try {
       if (isEditing && id) {
         await updateBank(id, bankRequest);
-        toast.success("Banco atualizado com sucesso");
-        navigate(`/banks/${id}`);
+        showSuccess("Banco atualizado com sucesso");
+        navigate(returnTo ?? `/banks/${id}`);
       } else {
         const created = await createBank(bankRequest);
-        toast.success("Banco criado com sucesso");
-        navigate(`/banks/${created.id}`);
+        showSuccess("Banco criado com sucesso");
+        navigate(returnTo ?? `/banks/${created.id}`);
       }
     } catch {
-      toast.error(isEditing ? "Falha ao atualizar banco" : "Falha ao criar banco");
+      showError(isEditing ? "Falha ao atualizar banco" : "Falha ao criar banco");
     } finally {
       setSubmitting(false);
     }
@@ -327,6 +347,87 @@ export function BankFormPage() {
                 placeholder="Ex: Debito"
               />
             </div>
+            <div className="space-y-2">
+              <Label htmlFor="csvSimilarityGroupingThresholdPercent">
+                Similaridade para Agrupamento (%)
+              </Label>
+              <Input
+                id="csvSimilarityGroupingThresholdPercent"
+                type="number"
+                min="1"
+                max="100"
+                value={csvSimilarityGroupingThresholdPercent}
+                onChange={(e) => setCsvSimilarityGroupingThresholdPercent(e.target.value)}
+                placeholder="60"
+              />
+              <p className="text-xs text-muted-foreground">
+                Default recomendado: 60. Valores maiores deixam o agrupamento mais rígido.
+              </p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* CSV Skip / Start-of-data Configuration */}
+      <Card className="shadow-sm border-slate-200">
+        <CardHeader>
+          <CardTitle>Ponto de Início de Leitura do CSV</CardTitle>
+          <CardDescription>
+            Configure onde o sistema deve começar a ler o arquivo CSV. Bancos como o Inter
+            possuem linhas de cabeçalho do arquivo antes dos dados — informe a linha ou
+            o texto de início para que essas linhas sejam ignoradas.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            <div className="space-y-2">
+              <Label>Estratégia de Início</Label>
+              <Select
+                value={csvSkipStrategy}
+                onValueChange={(v) => {
+                  setCsvSkipStrategy(v === "NONE" ? "" : (v as CsvSkipStrategy));
+                  setCsvSkipValue("");
+                }}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Sem configuração (início padrão)" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="NONE">Sem configuração (início padrão)</SelectItem>
+                  <SelectItem value={CsvSkipStrategy.LINE_NUMBER}>
+                    Número da linha
+                  </SelectItem>
+                  <SelectItem value={CsvSkipStrategy.STARTS_WITH_TEXT}>
+                    Texto de início
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {csvSkipStrategy && (
+              <div className="space-y-2">
+                <Label htmlFor="csvSkipValue">
+                  {csvSkipStrategy === CsvSkipStrategy.LINE_NUMBER
+                    ? "Número da linha do cabeçalho"
+                    : "Texto que inicia o cabeçalho"}
+                </Label>
+                <Input
+                  id="csvSkipValue"
+                  value={csvSkipValue}
+                  onChange={(e) => setCsvSkipValue(e.target.value)}
+                  placeholder={
+                    csvSkipStrategy === CsvSkipStrategy.LINE_NUMBER
+                      ? "Ex: 5"
+                      : "Ex: Data Lançamento"
+                  }
+                />
+                <p className="text-xs text-muted-foreground">
+                  {csvSkipStrategy === CsvSkipStrategy.LINE_NUMBER
+                    ? "Informe o número da linha que contém o cabeçalho das colunas (ex: 5 = linha 5 do arquivo)."
+                    : "Informe os caracteres iniciais da linha de cabeçalho. O sistema localiza a primeira linha que começa com esse texto."}
+                </p>
+              </div>
+            )}
           </div>
         </CardContent>
       </Card>

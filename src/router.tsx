@@ -6,6 +6,7 @@ import {
   BankFormPage,
   BanksTransactionsPage,
   BanksAccountsPage,
+  BanksDashboardPage,
   DashboardPage,
   TransactionUploadPage,
   TransactionManualPage,
@@ -13,6 +14,7 @@ import {
   InvestmentFormPage,
   InstitutionAliasPage,
   InvestmentPortfolioPage,
+  TransactionEditPage,
 } from "@/pages";
 
 export const router = createBrowserRouter([
@@ -27,6 +29,10 @@ export const router = createBrowserRouter([
       {
         path: "dashboard",
         element: <DashboardPage />,
+      },
+      {
+        path: "banks/dashboard",
+        element: <BanksDashboardPage />,
       },
       {
         path: "banks",
@@ -88,6 +94,10 @@ export const router = createBrowserRouter([
         path: "investments/institution-aliases",
         element: <InstitutionAliasPage />,
       },
+          {
+            path: "transactions/:id/edit",
+            element: <TransactionEditPage />,
+          },
     ],
   },
 ]);

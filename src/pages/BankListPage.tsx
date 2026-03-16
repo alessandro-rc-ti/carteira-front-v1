@@ -23,7 +23,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Plus, Eye, Pencil, Trash2, Copy } from "lucide-react";
-import { toast } from "sonner";
+import { showSuccess, showError } from "@/lib/toast";
 import { bankService } from "@/services/bankService";
 
 export function BankListPage() {
@@ -41,9 +41,9 @@ export function BankListPage() {
   const handleDelete = async (id: string, name: string) => {
     try {
       await deleteBank(id);
-      toast.success(`Banco "${name}" excluído com sucesso`);
+      showSuccess(`Banco "${name}" excluído com sucesso`);
     } catch {
-      toast.error("Falha ao excluir banco");
+      showError("Falha ao excluir banco");
     }
   };
 
@@ -123,14 +123,14 @@ export function BankListPage() {
                       descriptionSummaryPatterns: original.descriptionSummaryPatterns ?? [],
                     };
                     const created = await bankService.create(cloneReq);
-                    toast.success(`Banco "${cloneBankName.trim()}" clonado com sucesso!`);
+                    showSuccess(`Banco "${cloneBankName.trim()}" clonado com sucesso!`);
                     setCloneModalOpen(false);
                     setCloneBankName("");
                     setCloneBankId(null);
                     fetchBanks();
                     navigate(`/banks/${created.id}`);
                   } catch {
-                    toast.error("Falha ao clonar banco");
+                    showError("Falha ao clonar banco");
                   } finally {
                     setCloning(false);
                   }

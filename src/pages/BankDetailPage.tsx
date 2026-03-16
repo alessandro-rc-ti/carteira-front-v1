@@ -135,6 +135,14 @@ export function BankDetailPage() {
                 </p>
               </div>
             )}
+            <div>
+              <p className="text-sm font-medium text-muted-foreground">
+                Similaridade Agrupamento
+              </p>
+              <p className="font-mono text-sm">
+                {Math.round((selectedBank.csvSimilarityGroupingThreshold ?? 0.6) * 100)}%
+              </p>
+            </div>
           </div>
 
           <Separator className="my-4" />
