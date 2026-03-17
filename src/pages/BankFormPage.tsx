@@ -21,6 +21,7 @@ import {
 import { Switch } from "@/components/ui/switch";
 import { showSuccess, showError } from "@/lib/toast";
 import { ArrowLeft, Plus, Trash2, Save } from "lucide-react";
+import { PageHeader } from "@/components/shared";
 import {
   DebitValueSignHandling,
   CsvSkipStrategy,
@@ -162,7 +163,7 @@ export function BankFormPage() {
     e.preventDefault();
 
     if (!bankName.trim()) {
-      toast.error("Nome do banco é obrigatório");
+      showError("Nome do banco é obrigatório");
       return;
     }
 
@@ -229,36 +230,18 @@ export function BankFormPage() {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between mb-2">
-        <div className="flex items-center gap-4">
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            className="hover:bg-slate-200"
-            onClick={() => navigate(isEditing ? `/banks/${id}` : "/banks")}
-          >
-            <ArrowLeft className="h-5 w-5 text-slate-600" />
-          </Button>
-          <div>
-            <h1 className="text-xl font-bold text-slate-800 tracking-tight uppercase">
-              {isEditing ? "Editar Banco" : "Novo Banco"}
-            </h1>
-            <p className="text-sm text-slate-500 mt-1">
-              {isEditing
-                ? "Atualize a configuração CSV do banco"
-                : "Configure um novo banco para importação CSV"}
-            </p>
-          </div>
-        </div>
-        <div className="hidden sm:flex items-center gap-2">
-           <Button type="button" variant="outline" onClick={() => navigate("/banks")}>Cancelar</Button>
-           <Button type="submit" disabled={submitting} className="bg-blue-600 hover:bg-blue-700">
-             <Save className="mr-2 h-4 w-4" /> Salvar Banco
-           </Button>
-        </div>
-      </div>
+      <PageHeader
+        title={isEditing ? "Editar Banco" : "Novo Banco"}
+        description={isEditing ? "Atualize a configuração CSV do banco" : "Configure um novo banco para importação CSV"}
+      >
+        <Button type="button" variant="ghost" size="icon" onClick={() => navigate(isEditing ? `/banks/${id}` : "/banks")}>
+          <ArrowLeft className="h-4 w-4" />
+        </Button>
+        <Button type="button" variant="outline" onClick={() => navigate("/banks")}>Cancelar</Button>
+        <Button type="submit" disabled={submitting} className="gap-1.5">
+          <Save className="h-4 w-4" /> {submitting ? "Salvando..." : "Salvar Banco"}
+        </Button>
+      </PageHeader>
 
       {/* Basic Info */}
       <Card className="shadow-sm border-slate-200">
@@ -544,24 +527,11 @@ export function BankFormPage() {
         </CardContent>
       </Card>
 
-      {/* Submit */}
-      <div className="flex items-center gap-2">
-        <Button
-          type="button"
-          variant="outline"
-          onClick={() => navigate(isEditing ? `/banks/${id}` : "/banks")}
-        >
-          Cancelar
-        </Button>
-        <Button type="submit" disabled={submitting}>
-          {submitting ? (
-            "Salvando..."
-          ) : (
-            <>
-              <Save className="mr-2 h-4 w-4" />
-              {isEditing ? "Atualizar Banco" : "Criar Banco"}
-            </>
-          )}
+      {/* Mobile submit */}
+      <div className="flex items-center gap-2 sm:hidden">
+        <Button type="button" variant="outline" className="flex-1" onClick={() => navigate("/banks")}>Cancelar</Button>
+        <Button type="submit" disabled={submitting} className="flex-1 gap-1.5">
+          <Save className="h-4 w-4" /> {submitting ? "Salvando..." : isEditing ? "Atualizar" : "Criar Banco"}
         </Button>
       </div>
     </form>

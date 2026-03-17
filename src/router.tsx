@@ -1,4 +1,6 @@
+import type { ReactElement } from "react";
 import { createBrowserRouter, Navigate } from "react-router-dom";
+import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { Layout } from "@/components/Layout";
 import {
   BankListPage,
@@ -14,90 +16,133 @@ import {
   InvestmentFormPage,
   InstitutionAliasPage,
   InvestmentPortfolioPage,
+  LoginPage,
   TransactionEditPage,
+  UnauthorizedPage,
+  UsersPage,
 } from "@/pages";
+
+import { useAuthStore } from "@/stores/authStore";
+
+function withAuth(element: ReactElement, requiredPermissions?: string[]) {
+  return <ProtectedRoute requiredPermissions={requiredPermissions}>{element}</ProtectedRoute>;
+}
+
+function DefaultRouteRedirect() {
+  const hasPermission = useAuthStore((state) => state.hasPermission);
+
+  const candidates = [
+    { path: "/dashboard", permissions: ["dashboard.main.view"] },
+    { path: "/banks/dashboard", permissions: ["bank.dashboard.view"] },
+    { path: "/banks/accounts", permissions: ["bank.accounts.view", "bank.accounts.manage"] },
+    { path: "/banks/transactions", permissions: ["transaction.view"] },
+    { path: "/investments/portfolio", permissions: ["investment.portfolio.view"] },
+    { path: "/investments/transactions", permissions: ["investment.transactions.view", "investment.transactions.manage"] },
+    { path: "/investments/institution-aliases", permissions: ["institution_alias.manage"] },
+    { path: "/users", permissions: ["user.manage"] },
+  ];
+
+  const firstAllowed = candidates.find((item) => hasPermission(item.permissions));
+  return <Navigate to={firstAllowed?.path ?? "/unauthorized"} replace />;
+}
 
 export const router = createBrowserRouter([
   {
+    path: "/login",
+    element: <LoginPage />,
+  },
+  {
     path: "/",
-    element: <Layout />,
+    element: withAuth(<Layout />),
     children: [
       {
         index: true,
-        element: <Navigate to="/dashboard" replace />,
+        element: <DefaultRouteRedirect />,
+      },
+      {
+        path: "unauthorized",
+        element: <UnauthorizedPage />,
       },
       {
         path: "dashboard",
-        element: <DashboardPage />,
+        element: withAuth(<DashboardPage />, ["dashboard.main.view"]),
       },
       {
         path: "banks/dashboard",
-        element: <BanksDashboardPage />,
+        element: withAuth(<BanksDashboardPage />, ["bank.dashboard.view"]),
       },
       {
         path: "banks",
-        element: <BankListPage />,
+        element: withAuth(<BankListPage />, ["bank.accounts.view", "bank.accounts.manage"]),
       },
       {
         path: "banks/accounts",
-        element: <BanksAccountsPage />,
+        element: withAuth(<BanksAccountsPage />, ["bank.accounts.view", "bank.accounts.manage"]),
       },
       {
         path: "banks/transactions",
-        element: <BanksTransactionsPage />,
+        element: withAuth(<BanksTransactionsPage />, ["transaction.view"]),
+      },
+      {
+        path: "banks/transactions/:id/edit",
+        element: withAuth(<TransactionEditPage />, ["transaction.edit"]),
       },
       {
         path: "banks/new",
-        element: <BankFormPage />,
+        element: withAuth(<BankFormPage />, ["bank.accounts.manage"]),
       },
       {
         path: "banks/:id",
-        element: <BankDetailPage />,
+        element: withAuth(<BankDetailPage />, ["bank.accounts.view", "bank.accounts.manage"]),
       },
       {
         path: "banks/:id/edit",
-        element: <BankFormPage />,
+        element: withAuth(<BankFormPage />, ["bank.accounts.manage"]),
       },
       {
         path: "transaction-upload/:bankId",
-        element: <TransactionUploadPage />,
+        element: withAuth(<TransactionUploadPage />, ["transaction.import"]),
       },
       {
         path: "transaction-manual/:bankId",
-        element: <TransactionManualPage />,
+        element: withAuth(<TransactionManualPage />, ["transaction.create"]),
       },
       {
         path: "banks/transactions/import",
-        element: <TransactionUploadPage />,
+        element: withAuth(<TransactionUploadPage />, ["transaction.import"]),
       },
       {
         path: "banks/transactions/new",
-        element: <TransactionManualPage />,
+        element: withAuth(<TransactionManualPage />, ["transaction.create"]),
       },
       {
         path: "investments/transactions",
-        element: <InvestmentListPage />,
+        element: withAuth(<InvestmentListPage />, ["investment.transactions.view", "investment.transactions.manage"]),
       },
       {
         path: "investments/portfolio",
-        element: <InvestmentPortfolioPage />,
+        element: withAuth(<InvestmentPortfolioPage />, ["investment.portfolio.view"]),
       },
       {
         path: "investments/transactions/new",
-        element: <InvestmentFormPage />,
+        element: withAuth(<InvestmentFormPage />, ["investment.transactions.manage"]),
       },
       {
         path: "investments/transactions/:id/edit",
-        element: <InvestmentFormPage />,
+        element: withAuth(<InvestmentFormPage />, ["investment.transactions.manage"]),
       },
       {
         path: "investments/institution-aliases",
-        element: <InstitutionAliasPage />,
+        element: withAuth(<InstitutionAliasPage />, ["institution_alias.manage"]),
       },
-          {
-            path: "transactions/:id/edit",
-            element: <TransactionEditPage />,
-          },
+      {
+        path: "users",
+        element: withAuth(<UsersPage />, ["user.manage"]),
+      },
+      {
+        path: "transactions/:id/edit",
+        element: withAuth(<TransactionEditPage />, ["transaction.edit"]),
+      },
     ],
   },
 ]);

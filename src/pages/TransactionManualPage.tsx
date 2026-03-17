@@ -1,145 +1,168 @@
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { PageHeader } from "@/components/shared";
 import { ArrowLeft, PlusCircle } from "lucide-react";
 import { useNavigate, useSearchParams, useParams } from "react-router-dom";
 import { useBankStore } from "@/stores/bankStore";
 import { useTransactionStore } from "@/stores/transactionStore";
+import { showSuccess, showError } from "@/lib/toast";
 
 export function TransactionManualPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const params = useParams();
   const bankIdFromQuery = searchParams.get("bankId");
-  const bankIdFromParams = (params as any)?.bankId;
+  const bankIdFromParams = (params as Record<string, string>)?.bankId;
   const bankId = bankIdFromQuery || bankIdFromParams || "";
 
   const { selectedBank, fetchBankById, fetchBanks } = useBankStore();
-
-  useEffect(() => {
-    // ensure banks are loaded so user can see names elsewhere
-    fetchBanks();
-    if (bankId) {
-      fetchBankById(bankId);
-    }
-  }, [bankId]);
-
-  const [form, setForm] = useState({
-    date: "",
-    description: "",
-    amount: "",
-    type: "income",
-  });
+  const [form, setForm] = useState({ date: "", description: "", amount: "", type: "income" });
   const [loading, setLoading] = useState(false);
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-    setForm({ ...form, [e.target.name]: e.target.value });
-  };
+  useEffect(() => {
+    fetchBanks();
+    if (bankId) fetchBankById(bankId);
+  }, [bankId, fetchBanks, fetchBankById]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!bankId) {
-      alert("Selecione um banco antes de cadastrar a transação.");
+      showError("Selecione um banco antes de cadastrar a transacao.");
       return;
     }
     setLoading(true);
     try {
-      const payload = {
+      const state = useTransactionStore.getState() as unknown as Record<string, unknown>;
+      const createFn = state.createTransaction as (id: string, payload: unknown) => Promise<unknown>;
+      const created = await createFn(bankId, {
         date: form.date,
         description: form.description,
         amount: Number(form.amount),
         type: form.type,
-      } as any;
-      const created = await useTransactionStore.getState().createTransaction(bankId, payload);
-      setLoading(false);
+      });
       if (created) {
-        alert("Transação cadastrada com sucesso!");
+        showSuccess("Transacao cadastrada com sucesso!");
         navigate(-1);
       } else {
-        alert("Erro ao cadastrar transação.");
+        showError("Erro ao cadastrar transacao.");
       }
     } catch (err) {
+      showError(err instanceof Error ? err.message : "Erro inesperado");
+    } finally {
       setLoading(false);
-      alert(err instanceof Error ? err.message : "Erro inesperado");
     }
   };
 
   if (!bankId) {
     return (
-      <div className="max-w-lg mx-auto mt-10 bg-white rounded-xl shadow p-8">
-        <div className="flex items-center gap-4 mb-6">
+      <div className="space-y-6">
+        <PageHeader title="Cadastro Manual" description="Cadastre uma transacao manualmente">
           <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
-            <ArrowLeft className="h-5 w-5 text-slate-600" />
+            <ArrowLeft className="h-5 w-5" />
           </Button>
-          <h1 className="text-xl font-bold text-slate-800 tracking-tight uppercase">Cadastro Manual</h1>
-        </div>
-        <p className="text-slate-500 mb-6 text-sm">É necessário selecionar um banco antes de cadastrar transações. Volte para a tela de Transações e selecione um banco.</p>
-        <div className="flex gap-2">
-          <Button onClick={() => navigate(-1)}>Voltar</Button>
-          <Button variant="secondary" onClick={() => navigate("/banks/transactions")}>
-            Ir para Transações
-          </Button>
-        </div>
+        </PageHeader>
+        <Card className="max-w-lg">
+          <CardContent className="pt-6 space-y-4">
+            <p className="text-muted-foreground text-sm">
+              E necessario selecionar um banco antes de cadastrar transacoes. Volte para a
+              tela de Transacoes e selecione um banco.
+            </p>
+            <div className="flex gap-2">
+              <Button onClick={() => navigate(-1)}>Voltar</Button>
+              <Button variant="outline" onClick={() => navigate("/banks/transactions")}>
+                Ir para Transacoes
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
       </div>
     );
   }
 
   return (
-    <div className="max-w-lg mx-auto mt-10 bg-white rounded-xl shadow p-8">
-      <div className="flex items-center gap-4 mb-6">
+    <div className="space-y-6">
+      <PageHeader
+        title="Cadastro Manual"
+        description={`Banco: ${selectedBank ? selectedBank.bankName : bankId}`}
+      >
         <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
-          <ArrowLeft className="h-5 w-5 text-slate-600" />
+          <ArrowLeft className="h-5 w-5" />
         </Button>
-        <div>
-          <h1 className="text-xl font-bold text-slate-800 tracking-tight uppercase">Cadastro Manual</h1>
-          <div className="text-sm text-slate-500">Banco: {selectedBank ? selectedBank.bankName : bankId}</div>
-        </div>
-      </div>
-      <p className="text-slate-500 mb-6 text-sm">Preencha os dados para adicionar uma transação manualmente ao banco selecionado.</p>
-      <form className="space-y-4" onSubmit={handleSubmit}>
-        <input
-          type="date"
-          name="date"
-          value={form.date}
-          onChange={handleChange}
-          required
-          className="w-full border rounded-md px-3 py-2 text-sm"
-        />
-        <input
-          type="text"
-          name="description"
-          value={form.description}
-          onChange={handleChange}
-          placeholder="Descrição"
-          required
-          className="w-full border rounded-md px-3 py-2 text-sm"
-        />
-        <input
-          type="number"
-          name="amount"
-          value={form.amount}
-          onChange={handleChange}
-          placeholder="Valor"
-          required
-          className="w-full border rounded-md px-3 py-2 text-sm"
-        />
-        <select
-          name="type"
-          value={form.type}
-          onChange={handleChange}
-          className="w-full border rounded-md px-3 py-2 text-sm"
-        >
-          <option value="income">Receita</option>
-          <option value="expense">Despesa</option>
-        </select>
-        <Button
-          className="w-full flex items-center gap-2 justify-center bg-blue-600 hover:bg-blue-700"
-          disabled={loading}
-          type="submit"
-        >
-          <PlusCircle className="h-4 w-4" />
-          {loading ? "Salvando..." : "Salvar Transação"}
-        </Button>
-      </form>
+      </PageHeader>
+
+      <Card className="max-w-lg">
+        <CardHeader>
+          <CardTitle>Nova Transacao</CardTitle>
+          <CardDescription>
+            Preencha os dados para adicionar uma transacao manualmente.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <form className="space-y-5" onSubmit={handleSubmit}>
+            <div className="space-y-2">
+              <Label htmlFor="date">Data</Label>
+              <Input
+                id="date"
+                type="date"
+                value={form.date}
+                onChange={(e) => setForm({ ...form, date: e.target.value })}
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="description">Descricao</Label>
+              <Input
+                id="description"
+                value={form.description}
+                onChange={(e) => setForm({ ...form, description: e.target.value })}
+                placeholder="Ex: Supermercado, Salario..."
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="amount">Valor</Label>
+              <Input
+                id="amount"
+                type="number"
+                step="0.01"
+                value={form.amount}
+                onChange={(e) => setForm({ ...form, amount: e.target.value })}
+                placeholder="0,00"
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="type">Tipo</Label>
+              <Select
+                value={form.type}
+                onValueChange={(v) => setForm({ ...form, type: v })}
+              >
+                <SelectTrigger id="type">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="income">Receita</SelectItem>
+                  <SelectItem value="expense">Despesa</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <Button className="w-full" disabled={loading} type="submit">
+              <PlusCircle className="mr-2 h-4 w-4" />
+              {loading ? "Salvando..." : "Salvar Transacao"}
+            </Button>
+          </form>
+        </CardContent>
+      </Card>
     </div>
   );
 }

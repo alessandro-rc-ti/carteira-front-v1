@@ -2,25 +2,7 @@ import { useEffect, useState } from "react";
 import { useInstitutionAliasStore } from "@/stores/institutionAliasStore";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
+import { Label } from "@/components/ui/label";
 import {
   Dialog,
   DialogContent,
@@ -29,16 +11,26 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Label } from "@/components/ui/label";
-import { Plus, Pencil, Trash2, ArrowRightLeft } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { PageHeader, DataTable } from "@/components/shared";
+import { Plus, Pencil, Trash2, ArrowRightLeft, MoreHorizontal } from "lucide-react";
 import { showSuccess, showError } from "@/lib/toast";
+import type { InstitutionAliasResponse } from "@/types/institutionAlias";
+import type { ColumnDef } from "@tanstack/react-table";
 
 export function InstitutionAliasPage() {
   const { aliases, loading, fetchAliases, createAlias, updateAlias, deleteAlias } =
     useInstitutionAliasStore();
 
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [editingId, setEditingId] = useState<string | null>(null);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [editingAlias, setEditingAlias] = useState<InstitutionAliasResponse | null>(null);
+  const [deletingAlias, setDeletingAlias] = useState<InstitutionAliasResponse | null>(null);
   const [aliasValue, setAliasValue] = useState("");
   const [normalizedName, setNormalizedName] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -48,17 +40,22 @@ export function InstitutionAliasPage() {
   }, [fetchAliases]);
 
   const openNew = () => {
-    setEditingId(null);
+    setEditingAlias(null);
     setAliasValue("");
     setNormalizedName("");
     setDialogOpen(true);
   };
 
-  const openEdit = (id: string, alias: string, name: string) => {
-    setEditingId(id);
-    setAliasValue(alias);
-    setNormalizedName(name);
+  const openEdit = (a: InstitutionAliasResponse) => {
+    setEditingAlias(a);
+    setAliasValue(a.alias);
+    setNormalizedName(a.normalizedName);
     setDialogOpen(true);
+  };
+
+  const openDelete = (a: InstitutionAliasResponse) => {
+    setDeletingAlias(a);
+    setDeleteDialogOpen(true);
   };
 
   const handleSubmit = async () => {
@@ -69,8 +66,8 @@ export function InstitutionAliasPage() {
     setSubmitting(true);
     try {
       const request = { alias: aliasValue.trim(), normalizedName: normalizedName.trim() };
-      if (editingId) {
-        await updateAlias(editingId, request);
+      if (editingAlias) {
+        await updateAlias(editingAlias.id, request);
         showSuccess("Alias atualizado com sucesso");
       } else {
         await createAlias(request);
@@ -78,112 +75,108 @@ export function InstitutionAliasPage() {
       }
       setDialogOpen(false);
     } catch {
-      showError(editingId ? "Falha ao atualizar alias" : "Falha ao criar alias");
+      showError(editingAlias ? "Falha ao atualizar alias" : "Falha ao criar alias");
     } finally {
       setSubmitting(false);
     }
   };
 
-  const handleDelete = async (id: string, alias: string) => {
+  const handleDelete = async () => {
+    if (!deletingAlias) return;
     try {
-      await deleteAlias(id);
-      showSuccess(`Alias "${alias}" excluído com sucesso`);
+      await deleteAlias(deletingAlias.id);
+      showSuccess(`Alias "${deletingAlias.alias}" excluido com sucesso`);
+      setDeleteDialogOpen(false);
     } catch {
       showError("Falha ao excluir alias");
     }
   };
 
+  const columns: ColumnDef<InstitutionAliasResponse, unknown>[] = [
+    {
+      accessorKey: "alias",
+      header: "Alias (palavra-chave)",
+      cell: ({ row }) => (
+        <span className="font-mono text-xs uppercase">{row.original.alias}</span>
+      ),
+    },
+    {
+      accessorKey: "normalizedName",
+      header: "Nome Normalizado",
+      cell: ({ row }) => <span className="font-medium">{row.original.normalizedName}</span>,
+    },
+    {
+      id: "actions",
+      header: () => <span className="sr-only">Acoes</span>,
+      cell: ({ row }) => (
+        <div className="flex justify-end">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="icon">
+                <MoreHorizontal className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={() => openEdit(row.original)}>
+                <Pencil className="mr-2 h-4 w-4" />
+                Editar
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => openDelete(row.original)}
+                className="text-destructive focus:text-destructive"
+              >
+                <Trash2 className="mr-2 h-4 w-4" />
+                Excluir
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+      ),
+    },
+  ];
+
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between mb-2">
-        <div>
-          <h1 className="text-xl font-bold text-slate-800 tracking-tight uppercase">
-            Resumo Instituição
-          </h1>
-          <p className="text-slate-500 text-sm mt-1">
-            Mapeie os nomes longos das instituições da B3 para nomes curtos e legíveis
-          </p>
-        </div>
-        <Button onClick={openNew} className="bg-blue-600 hover:bg-blue-700 w-full sm:w-auto">
+      <PageHeader
+        title="Aliases de Instituicao"
+        description="Mapeie os nomes longos das instituicoes da B3 para nomes curtos e legiveis"
+      >
+        <Button onClick={openNew}>
           <Plus className="mr-2 h-4 w-4" />
           Novo Alias
         </Button>
-      </div>
+      </PageHeader>
 
-      {loading && aliases.length === 0 ? (
-        <div className="flex items-center justify-center py-12 text-muted-foreground">
-          Carregando aliases...
-        </div>
-      ) : aliases.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
-          <ArrowRightLeft className="h-12 w-12 mb-4 text-slate-300" />
-          <p className="text-lg">Nenhum alias cadastrado ainda</p>
-          <p className="text-sm">Adicione aliases para normalizar os nomes de instituição ao importar CSV da B3</p>
+      {aliases.length === 0 && !loading ? (
+        <div className="flex flex-col items-center justify-center py-20 text-muted-foreground">
+          <ArrowRightLeft className="h-12 w-12 mb-4 opacity-30" />
+          <p className="text-lg font-medium mb-1">Nenhum alias cadastrado ainda</p>
+          <p className="text-sm mb-6">
+            Adicione aliases para normalizar os nomes de instituicao ao importar CSV da B3
+          </p>
+          <Button onClick={openNew}>
+            <Plus className="mr-2 h-4 w-4" />
+            Criar Primeiro Alias
+          </Button>
         </div>
       ) : (
-        <div className="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden text-sm">
-          <Table>
-            <TableHeader className="bg-slate-50/80">
-              <TableRow>
-                <TableHead className="font-semibold text-slate-600">Alias (palavra-chave)</TableHead>
-                <TableHead className="font-semibold text-slate-600">Nome Normalizado</TableHead>
-                <TableHead className="text-right font-semibold text-slate-600">Ações</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {aliases.map((a) => (
-                <TableRow key={a.id}>
-                  <TableCell className="font-mono text-xs uppercase">{a.alias}</TableCell>
-                  <TableCell className="font-medium">{a.normalizedName}</TableCell>
-                  <TableCell className="text-right">
-                    <div className="flex items-center justify-end gap-1">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => openEdit(a.id, a.alias, a.normalizedName)}
-                        title="Editar alias"
-                      >
-                        <Pencil className="h-4 w-4" />
-                      </Button>
-                      <AlertDialog>
-                        <AlertDialogTrigger asChild>
-                          <Button variant="ghost" size="icon" title="Excluir alias">
-                            <Trash2 className="h-4 w-4 text-destructive" />
-                          </Button>
-                        </AlertDialogTrigger>
-                        <AlertDialogContent>
-                          <AlertDialogHeader>
-                            <AlertDialogTitle>Excluir alias?</AlertDialogTitle>
-                            <AlertDialogDescription>
-                              Isso excluirá permanentemente o alias &quot;{a.alias}&quot; → &quot;{a.normalizedName}&quot;.
-                              Futuras importações não farão mais esse de/para.
-                            </AlertDialogDescription>
-                          </AlertDialogHeader>
-                          <AlertDialogFooter>
-                            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                            <AlertDialogAction onClick={() => handleDelete(a.id, a.alias)}>
-                              Excluir
-                            </AlertDialogAction>
-                          </AlertDialogFooter>
-                        </AlertDialogContent>
-                      </AlertDialog>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
+        <DataTable
+          columns={columns}
+          data={aliases}
+          loading={loading}
+          globalFilterPlaceholder="Pesquisar aliases..."
+          emptyMessage="Nenhum alias encontrado."
+          initialPageSize={25}
+        />
       )}
 
       {/* Dialog Criar / Editar */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>{editingId ? "Editar Alias" : "Novo Alias"}</DialogTitle>
+            <DialogTitle>{editingAlias ? "Editar Alias" : "Novo Alias"}</DialogTitle>
             <DialogDescription>
-              O sistema procura este alias (case-insensitive) no nome da instituição do CSV da B3.
-              Se encontrar, usa o nome normalizado.
+              O sistema procura este alias (case-insensitive) no nome da instituicao do CSV da B3.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-2">
@@ -209,7 +202,7 @@ export function InstitutionAliasPage() {
                 placeholder="Ex: Inter"
               />
               <p className="text-xs text-muted-foreground">
-                Nome curto que será salvo no investimento
+                Nome curto que sera salvo no investimento
               </p>
             </div>
           </div>
@@ -220,9 +213,30 @@ export function InstitutionAliasPage() {
             <Button
               onClick={handleSubmit}
               disabled={submitting || !aliasValue.trim() || !normalizedName.trim()}
-              className="bg-blue-600 hover:bg-blue-700"
             >
-              {submitting ? "Salvando..." : editingId ? "Atualizar" : "Criar"}
+              {submitting ? "Salvando..." : editingAlias ? "Atualizar" : "Criar"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog Excluir */}
+      <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Excluir alias?</DialogTitle>
+            <DialogDescription>
+              Isso excluira permanentemente o alias &quot;{deletingAlias?.alias}&quot;{" "}
+              &rarr; &quot;{deletingAlias?.normalizedName}&quot;. Futuras importacoes nao
+              farao mais esse de/para.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteDialogOpen(false)}>
+              Cancelar
+            </Button>
+            <Button variant="destructive" onClick={handleDelete}>
+              Excluir
             </Button>
           </DialogFooter>
         </DialogContent>

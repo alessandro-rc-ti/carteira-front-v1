@@ -1,57 +1,40 @@
 # Carteira Frontend
 
-Frontend do Super App de Finanças Pessoais e Investimentos (PFM/Wealth) — Projeto Carteira.
+Frontend React/Vite do projeto Carteira.
 
-## Tecnologias
+## Stack
+
 - React + Vite + TypeScript
-- Tailwind CSS v4
+- Tailwind CSS
 - Shadcn/UI
-- Zustand (state)
-- Axios (API)
-- @tanstack/react-table
+- Zustand
+- Axios
+- TanStack Table
 - Recharts
-- Docker (dev/prod)
 
-## Funcionalidades
-- Cadastro e edição de bancos/configurações CSV
-- Importação de extratos CSV com análise automática
-- Mapeamento manual de descrições
-- Visualização de padrões de sumarização
-- UI 100% em português (código em inglês)
+## Execução
 
-## Desenvolvimento
-```sh
-# Subir ambiente dev (hot reload via Docker)
+O fluxo oficial está em [../MANUAL_AMBIENTES.md](../MANUAL_AMBIENTES.md).
+
+Comandos mais usados a partir da raiz:
+
+```bash
 make dev-up-front
-# ou manualmente
-cd carteira_front
-npm install
-npm run dev
+make logs-front
+make front-install PKG=recharts
+make front-npm CMD="run build"
 ```
 
-Acesse: http://localhost:5173
+Em desenvolvimento, o frontend responde por padrão em:
 
-## Produção
-```sh
-# Build de produção
-npm run build
-# Gerar imagem Docker
-cd carteira_front
-docker build -t carteira-front:prod .
-```
+- `http://localhost:5173`
 
-## Docker Compose (dev)
-O serviço `front` já está integrado ao docker-compose do backend.
+Em produção local com Docker Compose:
 
-## Variáveis de ambiente
-- `VITE_API_BASE_URL` (default: http://localhost:8080/api/v1)
+- `http://localhost`
 
-## Scripts úteis
-- `push-to-remote.sh` — publica o projeto neste repositório
+## Variável principal
 
-## Repositório
-https://github.com/alessandro-rc-ti/carteira-front-v1
+- `VITE_API_BASE_URL`
 
----
-
-> Projeto open source. Para dúvidas, abra uma issue.
+Essa variável deve ser configurada no `.env.dev`.

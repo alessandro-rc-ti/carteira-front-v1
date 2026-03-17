@@ -1,257 +1,258 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useBankStore } from "@/stores";
+import { useBankStore } from "@/stores/bankStore";
+import { bankService } from "@/services";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
-import { Plus, Eye, Pencil, Trash2, Copy } from "lucide-react";
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { PageHeader, DataTable, KpiCard } from "@/components/shared";
+import { Plus, Eye, Pencil, Copy, Trash2, MoreHorizontal, Building2, CheckCircle2 } from "lucide-react";
 import { showSuccess, showError } from "@/lib/toast";
-import { bankService } from "@/services/bankService";
+import type { BankResponse } from "@/types/bank";
+import type { ColumnDef } from "@tanstack/react-table";
+
+const SIGN_LABELS: Record<string, string> = {
+  NO_CHANGE: "Sem alteracao",
+  INVERT: "Inverter sinal",
+  ABSOLUTE: "Valor absoluto",
+  NEGATE_IF_POSITIVE: "Negar se positivo",
+};
 
 export function BankListPage() {
   const navigate = useNavigate();
-  const { banks, loading, fetchBanks, deleteBank } = useBankStore();
-  const [cloneModalOpen, setCloneModalOpen] = useState(false);
-  const [cloneBankId, setCloneBankId] = useState<string | null>(null);
-  const [cloneBankName, setCloneBankName] = useState("");
-  const [cloning, setCloning] = useState(false);
+  const { banks, loading, fetchBanks } = useBankStore();
+  const [cloneLoading, setCloneLoading] = useState(false);
+  const [deleteLoading, setDeleteLoading] = useState(false);
+  const [cloneDialogOpen, setCloneDialogOpen] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [selectedBank, setSelectedBank] = useState<BankResponse | null>(null);
 
   useEffect(() => {
     fetchBanks();
   }, [fetchBanks]);
 
-  const handleDelete = async (id: string, name: string) => {
+  const openClone = (b: BankResponse) => { setSelectedBank(b); setCloneDialogOpen(true); };
+  const openDelete = (b: BankResponse) => { setSelectedBank(b); setDeleteDialogOpen(true); };
+
+  const handleClone = async () => {
+    if (!selectedBank) return;
+    setCloneLoading(true);
     try {
-      await deleteBank(id);
-      showSuccess(`Banco "${name}" excluído com sucesso`);
+      await bankService.create({
+        bankName: selectedBank.bankName + " (copia)",
+        dateFormatPattern: selectedBank.dateFormatPattern,
+        decimalSeparator: selectedBank.decimalSeparator,
+        csvDelimiter: selectedBank.csvDelimiter,
+        csvHeaderMapping: selectedBank.csvHeaderMapping,
+        debitValueSignHandling: selectedBank.debitValueSignHandling,
+        creditTypeIdentifier: selectedBank.creditTypeIdentifier,
+        debitTypeIdentifier: selectedBank.debitTypeIdentifier,
+        csvSkipStrategy: selectedBank.csvSkipStrategy,
+        csvSkipValue: selectedBank.csvSkipValue,
+        csvSimilarityGroupingThreshold: selectedBank.csvSimilarityGroupingThreshold,
+        descriptionSummaryPatterns: selectedBank.descriptionSummaryPatterns,
+      });
+      showSuccess(`Banco clonado com sucesso`);
+      fetchBanks();
+      setCloneDialogOpen(false);
     } catch {
-      showError("Falha ao excluir banco");
+      showError("Falha ao clonar banco");
+    } finally {
+      setCloneLoading(false);
     }
   };
 
+  const handleDelete = async () => {
+    if (!selectedBank) return;
+    setDeleteLoading(true);
+    try {
+      await bankService.remove(selectedBank.id);
+      showSuccess(`Banco "${selectedBank.bankName}" excluido`);
+      fetchBanks();
+      setDeleteDialogOpen(false);
+    } catch {
+      showError("Falha ao excluir banco");
+    } finally {
+      setDeleteLoading(false);
+    }
+  };
+
+  const totalBanks = banks.length;
+  const activeBanks = banks.filter((b) => b.active).length;
+
+  const columns: ColumnDef<BankResponse, unknown>[] = [
+    {
+      accessorKey: "bankName",
+      header: "Nome do Banco",
+      cell: ({ row }) => <span className="font-semibold">{row.original.bankName}</span>,
+    },
+    {
+      accessorKey: "dateFormatPattern",
+      header: "Formato de Data",
+      cell: ({ row }) => (
+        <span className="font-mono text-xs">{row.original.dateFormatPattern}</span>
+      ),
+    },
+    {
+      accessorKey: "csvDelimiter",
+      header: "Delimitador",
+      cell: ({ row }) => (
+        <span className="font-mono text-xs bg-muted px-1.5 py-0.5 rounded">
+          {row.original.csvDelimiter}
+        </span>
+      ),
+    },
+    {
+      accessorKey: "debitValueSignHandling",
+      header: "Sinal Debito",
+      cell: ({ row }) => (
+        <span className="text-xs text-muted-foreground">
+          {SIGN_LABELS[row.original.debitValueSignHandling] ?? row.original.debitValueSignHandling}
+        </span>
+      ),
+    },
+    {
+      id: "patterns",
+      header: "Padroes",
+      cell: ({ row }) => (
+        <Badge variant="secondary">{row.original.descriptionSummaryPatterns?.length ?? 0}</Badge>
+      ),
+    },
+    {
+      accessorKey: "active",
+      header: "Status",
+      cell: ({ row }) =>
+        row.original.active ? (
+          <Badge variant="default" className="bg-green-600 hover:bg-green-700">Ativo</Badge>
+        ) : (
+          <Badge variant="secondary">Inativo</Badge>
+        ),
+    },
+    {
+      id: "actions",
+      header: () => <span className="sr-only">Acoes</span>,
+      cell: ({ row }) => (
+        <div className="flex justify-end">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="icon">
+                <MoreHorizontal className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={() => navigate(`/banks/${row.original.id}`)}>
+                <Eye className="mr-2 h-4 w-4" /> Ver
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => navigate(`/banks/${row.original.id}/edit`)}>
+                <Pencil className="mr-2 h-4 w-4" /> Editar
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => openClone(row.original)}>
+                <Copy className="mr-2 h-4 w-4" /> Clonar
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                onClick={() => openDelete(row.original)}
+                className="text-destructive focus:text-destructive"
+              >
+                <Trash2 className="mr-2 h-4 w-4" /> Excluir
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+      ),
+    },
+  ];
+
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between mb-2">
-        <div>
-          <h1 className="text-xl font-bold text-slate-800 tracking-tight uppercase">Bancos & Contas</h1>
-          <p className="text-slate-500 text-sm mt-1">
-            Gerencie as configurações dos seus bancos para importação CSV
-          </p>
-        </div>
-        <Button onClick={() => navigate("/banks/new")} className="bg-blue-600 hover:bg-blue-700 w-full sm:w-auto">
+      <PageHeader
+        title="Bancos"
+        description="Gerencie as configuracoes dos bancos importados"
+      >
+        <Button onClick={() => navigate("/banks/new")}>
           <Plus className="mr-2 h-4 w-4" />
           Novo Banco
         </Button>
+      </PageHeader>
+
+      <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
+        <KpiCard
+          title="Total de Bancos"
+          value={String(totalBanks)}
+          icon={Building2}
+        />
+        <KpiCard
+          title="Bancos Ativos"
+          value={String(activeBanks)}
+          icon={CheckCircle2}
+          iconClassName="text-green-600"
+        />
       </div>
 
-      {/* Modal de Clonar Banco */}
-      {cloneModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-          <div className="bg-white rounded-xl shadow-xl p-8 w-full max-w-md relative">
-            <button
-              className="absolute top-3 right-3 text-slate-400 hover:text-slate-600"
-              onClick={() => setCloneModalOpen(false)}
-              type="button"
-            >
-              <span className="text-lg">×</span>
-            </button>
-            <h2 className="text-lg font-bold mb-4">Clonar Banco</h2>
-            <p className="text-sm text-slate-500 mb-4">
-              Será criado um novo banco com todas as configurações idênticas. Informe apenas o nome.
-            </p>
-            <div className="space-y-2">
-              <label htmlFor="cloneBankName" className="text-sm font-medium">Nome do novo banco *</label>
-              <input
-                id="cloneBankName"
-                value={cloneBankName}
-                onChange={(e) => setCloneBankName(e.target.value)}
-                placeholder="Ex: Inter Conta 2"
-                className="w-full border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                autoFocus
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" && cloneBankName.trim()) {
-                    e.preventDefault();
-                    document.getElementById("btnClonar")?.click();
-                  }
-                }}
-              />
-            </div>
-            <div className="flex gap-2 mt-6 justify-end">
-              <button
-                className="px-4 py-2 rounded-md bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium text-sm"
-                onClick={() => setCloneModalOpen(false)}
-                type="button"
-              >
-                Cancelar
-              </button>
-              <button
-                id="btnClonar"
-                className="px-4 py-2 rounded-md bg-blue-600 hover:bg-blue-700 text-white font-medium text-sm disabled:opacity-50"
-                disabled={cloning || !cloneBankName.trim()}
-                onClick={async () => {
-                  if (!cloneBankId) return;
-                  setCloning(true);
-                  try {
-                    const original = await bankService.getById(cloneBankId);
-                    const cloneReq = {
-                      bankName: cloneBankName.trim(),
-                      dateFormatPattern: original.dateFormatPattern,
-                      decimalSeparator: original.decimalSeparator,
-                      csvDelimiter: original.csvDelimiter,
-                      csvHeaderMapping: original.csvHeaderMapping,
-                      debitValueSignHandling: original.debitValueSignHandling,
-                      creditTypeIdentifier: original.creditTypeIdentifier,
-                      debitTypeIdentifier: original.debitTypeIdentifier,
-                      descriptionSummaryPatterns: original.descriptionSummaryPatterns ?? [],
-                    };
-                    const created = await bankService.create(cloneReq);
-                    showSuccess(`Banco "${cloneBankName.trim()}" clonado com sucesso!`);
-                    setCloneModalOpen(false);
-                    setCloneBankName("");
-                    setCloneBankId(null);
-                    fetchBanks();
-                    navigate(`/banks/${created.id}`);
-                  } catch {
-                    showError("Falha ao clonar banco");
-                  } finally {
-                    setCloning(false);
-                  }
-                }}
-                type="button"
-              >
-                {cloning ? "Clonando..." : "Clonar"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <DataTable
+        columns={columns}
+        data={banks}
+        loading={loading}
+        globalFilterPlaceholder="Pesquisar bancos..."
+        emptyMessage="Nenhum banco cadastrado ainda."
+        initialPageSize={25}
+      />
 
-      {loading && banks.length === 0 ? (
-        <div className="flex items-center justify-center py-12 text-muted-foreground">
-          Carregando bancos...
-        </div>
-      ) : banks.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
-          <p className="text-lg">Nenhum banco configurado ainda</p>
-          <p className="text-sm">Crie seu primeiro banco para começar a importar transações</p>
-        </div>
-      ) : (
-        <div className="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden text-sm">
-          <Table>
-            <TableHeader className="bg-slate-50/80">
-              <TableRow>
-                <TableHead className="font-semibold text-slate-600">Nome</TableHead>
-                <TableHead className="font-semibold text-slate-600">Formato Data</TableHead>
-                <TableHead className="font-semibold text-slate-600">Delimitador</TableHead>
-                <TableHead className="font-semibold text-slate-600">Tratamento Débito</TableHead>
-                <TableHead className="font-semibold text-slate-600">Padrões</TableHead>
-                <TableHead className="font-semibold text-slate-600">Status</TableHead>
-                <TableHead className="text-right font-semibold text-slate-600">Ações</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {banks.map((bank) => (
-                <TableRow key={bank.id}>
-                  <TableCell className="font-medium">{bank.bankName}</TableCell>
-                  <TableCell className="text-muted-foreground text-sm">
-                    {bank.dateFormatPattern}
-                  </TableCell>
-                  <TableCell className="text-muted-foreground text-sm">
-                    {bank.csvDelimiter === ";" ? "ponto e vírgula (;)" : bank.csvDelimiter}
-                  </TableCell>
-                  <TableCell className="text-muted-foreground text-sm">
-                    {bank.debitValueSignHandling}
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant="secondary">
-                      {bank.descriptionSummaryPatterns?.length ?? 0}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant={bank.active ? "default" : "outline"}>
-                      {bank.active ? "Ativo" : "Inativo"}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <div className="flex items-center justify-end gap-1">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => {
-                          setCloneBankId(bank.id);
-                          setCloneBankName("");
-                          setCloneModalOpen(true);
-                        }}
-                        title="Clonar banco"
-                      >
-                        <Copy className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => navigate(`/banks/${bank.id}`)}
-                        title="Ver detalhes e importar CSV"
-                      >
-                        <Eye className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => navigate(`/banks/${bank.id}/edit`)}
-                        title="Editar banco"
-                      >
-                        <Pencil className="h-4 w-4" />
-                      </Button>
-                      <AlertDialog>
-                        <AlertDialogTrigger asChild>
-                          <Button variant="ghost" size="icon" title="Excluir banco">
-                            <Trash2 className="h-4 w-4 text-destructive" />
-                          </Button>
-                        </AlertDialogTrigger>
-                        <AlertDialogContent>
-                          <AlertDialogHeader>
-                            <AlertDialogTitle>Excluir banco?</AlertDialogTitle>
-                            <AlertDialogDescription>
-                              Isso excluirá permanentemente &quot;{bank.bankName}&quot; e toda sua
-                              configuração. Esta ação não pode ser desfeita.
-                            </AlertDialogDescription>
-                          </AlertDialogHeader>
-                          <AlertDialogFooter>
-                            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                            <AlertDialogAction
-                              onClick={() => handleDelete(bank.id, bank.bankName)}
-                            >
-                              Excluir
-                            </AlertDialogAction>
-                          </AlertDialogFooter>
-                        </AlertDialogContent>
-                      </AlertDialog>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
-      )}
+      {/* Clone Dialog */}
+      <Dialog open={cloneDialogOpen} onOpenChange={setCloneDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Clonar banco?</DialogTitle>
+            <DialogDescription>
+              Uma copia de &quot;{selectedBank?.bankName}&quot; sera criada com todos os padroes
+              de sumario. Voce podera editar as configuracoes depois.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCloneDialogOpen(false)}>
+              Cancelar
+            </Button>
+            <Button onClick={handleClone} disabled={cloneLoading}>
+              {cloneLoading ? "Clonando..." : "Clonar"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Dialog */}
+      <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Excluir banco?</DialogTitle>
+            <DialogDescription>
+              Isso excluira permanentemente &quot;{selectedBank?.bankName}&quot; e todos os seus
+              padroes de sumario. Esta acao e irreversivel.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteDialogOpen(false)}>
+              Cancelar
+            </Button>
+            <Button variant="destructive" onClick={handleDelete} disabled={deleteLoading}>
+              {deleteLoading ? "Excluindo..." : "Excluir"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

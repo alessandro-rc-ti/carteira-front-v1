@@ -390,7 +390,7 @@ export function TransactionTable({
 
                             {tooltipOpenId === tx.id && (
                               <div
-                                ref={(el) => (tooltipRef.current = el)}
+                                ref={(el) => { tooltipRef.current = el; }}
                                 data-tooltip-id={tx.id}
                                 className="absolute right-0 z-50 mt-2 w-64 rounded-md border bg-white p-2 shadow"
                               >

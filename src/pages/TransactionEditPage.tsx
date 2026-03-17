@@ -1,24 +1,24 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useTransactionStore } from "@/stores/transactionStore";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
+import { PageHeader } from "@/components/shared";
+import { ArrowLeft } from "lucide-react";
+import { showSuccess, showError } from "@/lib/toast";
+import type { Transaction } from "@/types/transaction";
 
 export default function TransactionEditPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { transactions, fetchAll, updateTransaction } = useTransactionStore();
   const [loading, setLoading] = useState(true);
-  const [form, setForm] = useState<any>({});
+  const [saving, setSaving] = useState(false);
+  const [form, setForm] = useState<Partial<Transaction>>({});
 
   useEffect(() => {
-    // ensure transactions loaded
     if (transactions.length === 0) fetchAll().finally(() => setLoading(false));
     else setLoading(false);
   }, [transactions, fetchAll]);
@@ -30,45 +30,81 @@ export default function TransactionEditPage() {
     }
   }, [loading, id, transactions]);
 
-  if (loading) return <div>Carregando...</div>;
-  if (!id) return <div>ID inválido</div>;
+  if (loading) return <div className="p-8 text-muted-foreground">Carregando...</div>;
+  if (!id) return <div className="p-8 text-destructive">ID invalido</div>;
 
-  const handleChange = (k: string, v: any) => setForm((s: any) => ({ ...s, [k]: v }));
+  const set = (k: keyof Transaction, v: string | number) =>
+    setForm((s) => ({ ...s, [k]: v }));
 
   const handleSave = async () => {
+    setSaving(true);
     try {
-      await updateTransaction(form.id, form);
+      await updateTransaction(String(form.id), form as Transaction);
+      showSuccess("Transacao atualizada com sucesso");
       navigate(-1);
     } catch (e) {
-      console.error(e);
-      alert("Erro ao salvar");
+      showError(e instanceof Error ? e.message : "Erro ao salvar transacao");
+    } finally {
+      setSaving(false);
     }
   };
 
   return (
-    <div>
-      <Card>
+    <div className="space-y-6">
+      <PageHeader
+        title="Editar Transacao"
+        description="Edite os dados da transacao selecionada"
+      >
+        <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
+          <ArrowLeft className="h-5 w-5" />
+        </Button>
+        <Button variant="outline" onClick={() => navigate(-1)}>
+          Cancelar
+        </Button>
+        <Button onClick={handleSave} disabled={saving}>
+          {saving ? "Salvando..." : "Salvar"}
+        </Button>
+      </PageHeader>
+
+      <Card className="max-w-2xl">
         <CardHeader>
-          <CardTitle>Editar Transação</CardTitle>
+          <CardTitle>Dados da Transacao</CardTitle>
         </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 gap-3 max-w-2xl">
-            <label className="text-sm">Data</label>
-            <Input value={form.transactionDate ?? ""} onChange={(e: any) => handleChange("transactionDate", e.target.value)} />
-
-            <label className="text-sm">Descrição Original</label>
-            <Input value={form.originalDescription ?? ""} onChange={(e: any) => handleChange("originalDescription", e.target.value)} />
-
-            <label className="text-sm">Resumo</label>
-            <Input value={form.summaryDescription ?? ""} onChange={(e: any) => handleChange("summaryDescription", e.target.value)} />
-
-            <label className="text-sm">Valor</label>
-            <Input value={String(form.amount ?? "")} onChange={(e: any) => handleChange("amount", Number(e.target.value))} />
-
-            <div className="flex gap-2 mt-3">
-              <Button onClick={handleSave}>Salvar</Button>
-              <Button variant="ghost" onClick={() => navigate(-1)}>Cancelar</Button>
-            </div>
+        <CardContent className="grid grid-cols-1 gap-5">
+          <div className="space-y-2">
+            <Label htmlFor="transactionDate">Data</Label>
+            <Input
+              id="transactionDate"
+              type="date"
+              value={form.transactionDate ?? ""}
+              onChange={(e) => set("transactionDate", e.target.value)}
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="originalDescription">Descricao Original</Label>
+            <Input
+              id="originalDescription"
+              value={form.originalDescription ?? ""}
+              onChange={(e) => set("originalDescription", e.target.value)}
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="summaryDescription">Resumo</Label>
+            <Input
+              id="summaryDescription"
+              value={form.summaryDescription ?? ""}
+              onChange={(e) => set("summaryDescription", e.target.value)}
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="amount">Valor</Label>
+            <Input
+              id="amount"
+              type="number"
+              step="0.01"
+              value={String(form.amount ?? "")}
+              onChange={(e) => set("amount", Number(e.target.value))}
+            />
           </div>
         </CardContent>
       </Card>

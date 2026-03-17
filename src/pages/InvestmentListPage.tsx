@@ -7,54 +7,56 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
-import {
   Dialog,
   DialogContent,
   DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Plus, Pencil, Trash2, Upload, FileX } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { PageHeader, DataTable } from "@/components/shared";
+import { Plus, Pencil, Trash2, Upload, FileX, MoreVertical, MoreHorizontal } from "lucide-react";
 import { showSuccess, showError } from "@/lib/toast";
 import { investmentService } from "@/services";
-import { InvestmentCategoryLabels, InvestmentOrderTypeLabels } from "@/types/investment";
-import type { InvestmentCategory, InvestmentOrderType } from "@/types/investment";
+import {
+  InvestmentCategoryLabels,
+  InvestmentOrderTypeLabels,
+} from "@/types/investment";
+import type { InvestmentCategory, InvestmentOrderType, InvestmentResponse } from "@/types/investment";
+import type { ColumnDef } from "@tanstack/react-table";
+
+const formatCurrency = (v: number) =>
+  new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v);
+const formatDate = (d: string) => {
+  const [y, m, day] = d.split("-");
+  return `${day}/${m}/${y}`;
+};
+const formatQty = (v: number) =>
+  new Intl.NumberFormat("pt-BR", { minimumFractionDigits: 0, maximumFractionDigits: 6 }).format(v);
 
 export function InvestmentListPage() {
   const navigate = useNavigate();
   const { investments, loading, fetchInvestments, deleteInvestment } = useInvestmentStore();
   const [b3ImportOpen, setB3ImportOpen] = useState(false);
-
-  // Delete state
   const [deleteLoading, setDeleteLoading] = useState(false);
-  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [deleteByFileOpen, setDeleteByFileOpen] = useState(false);
   const [deleteFileName, setDeleteFileName] = useState("");
+  const [deleteSingleId, setDeleteSingleId] = useState<{ id: string; ticker: string } | null>(null);
 
   useEffect(() => {
     fetchInvestments();
   }, [fetchInvestments]);
 
-  // ── Delete handlers ───────────────────────────────────────────────────
   const handleDeleteAll = async () => {
-    if (!confirm("Tem certeza? Isso apagará TODOS os investimentos e aliases de instituição. Ação irreversível.")) return;
+    if (!confirm("Tem certeza? Isso apagara TODOS os investimentos e aliases de instituicao. Acao irreversivel.")) return;
     setDeleteLoading(true);
     try {
       await investmentService.deleteAllInvestmentsAndAliases();
@@ -68,7 +70,7 @@ export function InvestmentListPage() {
   };
 
   const handleDeleteInvestments = async () => {
-    if (!confirm("Tem certeza? Isso apagará TODOS os investimentos. Ação irreversível.")) return;
+    if (!confirm("Tem certeza? Isso apagara TODOS os investimentos. Acao irreversivel.")) return;
     setDeleteLoading(true);
     try {
       await investmentService.deleteAllInvestments();
@@ -82,15 +84,12 @@ export function InvestmentListPage() {
   };
 
   const handleDeleteByFile = async () => {
-    if (!deleteFileName.trim()) {
-      showError("Informe o nome do arquivo");
-      return;
-    }
+    if (!deleteFileName.trim()) { showError("Informe o nome do arquivo"); return; }
     setDeleteLoading(true);
     try {
       await investmentService.deleteInvestmentsByFile(deleteFileName.trim());
       showSuccess(`Investimentos do arquivo "${deleteFileName}" deletados`);
-      setDeleteModalOpen(false);
+      setDeleteByFileOpen(false);
       setDeleteFileName("");
       fetchInvestments();
     } catch {
@@ -100,187 +99,173 @@ export function InvestmentListPage() {
     }
   };
 
-  const handleDelete = async (id: string, ticker: string) => {
+  const handleDeleteSingle = async () => {
+    if (!deleteSingleId) return;
     try {
-      await deleteInvestment(id);
-      showSuccess(`Investimento "${ticker}" excluído com sucesso`);
+      await deleteInvestment(deleteSingleId.id);
+      showSuccess(`Investimento "${deleteSingleId.ticker}" excluido com sucesso`);
+      setDeleteSingleId(null);
     } catch {
       showError("Falha ao excluir investimento");
     }
   };
 
-  const formatCurrency = (value: number) =>
-    new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(value);
-
-  const formatDate = (dateStr: string) => {
-    const [year, month, day] = dateStr.split("-");
-    return `${day}/${month}/${year}`;
-  };
-
-  const formatQuantity = (value: number) =>
-    new Intl.NumberFormat("pt-BR", { minimumFractionDigits: 0, maximumFractionDigits: 6 }).format(value);
-
-  // Ordenação
-  const [sortKey, setSortKey] = useState<string>("purchaseDate");
-  const [sortAsc, setSortAsc] = useState<boolean>(false);
-  const sortedInvestments = [...investments].sort((a, b) => {
-    const valA = a[sortKey as keyof typeof a];
-    const valB = b[sortKey as keyof typeof b];
-    if (typeof valA === "string" && typeof valB === "string") {
-      return sortAsc ? valA.localeCompare(valB) : valB.localeCompare(valA);
-    }
-    if (typeof valA === "number" && typeof valB === "number") {
-      return sortAsc ? valA - valB : valB - valA;
-    }
-    return 0;
-  });
+  const columns: ColumnDef<InvestmentResponse, unknown>[] = [
+    {
+      accessorKey: "ticker",
+      header: "Ticker",
+      cell: ({ row }) => (
+        <span className="font-mono font-semibold uppercase">{row.original.ticker}</span>
+      ),
+    },
+    {
+      accessorKey: "category",
+      header: "Categoria",
+      cell: ({ row }) => (
+        <Badge variant="secondary">
+          {InvestmentCategoryLabels[row.original.category as InvestmentCategory] ?? row.original.category}
+        </Badge>
+      ),
+    },
+    {
+      accessorKey: "orderType",
+      header: "Tipo Ordem",
+      cell: ({ row }) => (
+        <Badge variant="outline">
+          {InvestmentOrderTypeLabels[row.original.orderType as InvestmentOrderType] ?? row.original.orderType}
+        </Badge>
+      ),
+    },
+    {
+      accessorKey: "quantity",
+      header: "Quantidade",
+      cell: ({ row }) => (
+        <span className="text-right block tabular-nums text-muted-foreground">
+          {formatQty(row.original.quantity)}
+        </span>
+      ),
+    },
+    {
+      accessorKey: "unitPrice",
+      header: "Preco Unit.",
+      cell: ({ row }) => (
+        <span className="text-right block tabular-nums text-muted-foreground">
+          {formatCurrency(row.original.unitPrice)}
+        </span>
+      ),
+    },
+    {
+      accessorKey: "totalPrice",
+      header: "Total",
+      cell: ({ row }) => (
+        <span className="text-right block tabular-nums font-medium">
+          {formatCurrency(row.original.totalPrice)}
+        </span>
+      ),
+    },
+    {
+      accessorKey: "purchaseDate",
+      header: "Data Compra",
+      cell: ({ row }) => (
+        <span className="text-muted-foreground">{formatDate(row.original.purchaseDate)}</span>
+      ),
+    },
+    {
+      accessorKey: "institution",
+      header: "Instituicao",
+      cell: ({ row }) => <span className="text-muted-foreground">{row.original.institution}</span>,
+    },
+    {
+      id: "actions",
+      header: () => <span className="sr-only">Acoes</span>,
+      cell: ({ row }) => (
+        <div className="flex justify-end">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="icon">
+                <MoreHorizontal className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem
+                onClick={() => navigate(`/investments/transactions/${row.original.id}/edit`)}
+              >
+                <Pencil className="mr-2 h-4 w-4" />
+                Editar
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                onClick={() => setDeleteSingleId({ id: row.original.id, ticker: row.original.ticker })}
+                className="text-destructive focus:text-destructive"
+              >
+                <Trash2 className="mr-2 h-4 w-4" />
+                Excluir
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+      ),
+    },
+  ];
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between mb-2">
-        <div>
-          <h1 className="text-xl font-bold text-slate-800 tracking-tight uppercase">Investimentos</h1>
-          <p className="text-slate-500 text-sm mt-1">
-            Gerencie sua carteira de investimentos
-          </p>
-        </div>
-        <div className="flex gap-2">
-          <Button variant="outline" onClick={() => setB3ImportOpen(true)} className="w-full sm:w-auto">
-            <Upload className="mr-2 h-4 w-4" />
-            Importar B3
-          </Button>
-          <Button onClick={() => navigate("/investments/transactions/new")} className="bg-blue-600 hover:bg-blue-700 w-full sm:w-auto">
-            <Plus className="mr-2 h-4 w-4" />
-            Novo Investimento
-          </Button>
-        </div>
-      </div>
+      <PageHeader
+        title="Investimentos"
+        description="Gerencie sua carteira de investimentos"
+      >
+        <Button variant="outline" onClick={() => setB3ImportOpen(true)}>
+          <Upload className="mr-2 h-4 w-4" />
+          Importar B3
+        </Button>
+        <Button onClick={() => navigate("/investments/transactions/new")}>
+          <Plus className="mr-2 h-4 w-4" />
+          Novo Investimento
+        </Button>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="outline" size="icon">
+              <MoreVertical className="h-4 w-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuLabel>Acoes em massa</DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              onClick={() => setDeleteByFileOpen(true)}
+            >
+              <FileX className="mr-2 h-4 w-4" />
+              Deletar por arquivo
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              onClick={handleDeleteInvestments}
+              className="text-destructive focus:text-destructive"
+              disabled={deleteLoading}
+            >
+              <Trash2 className="mr-2 h-4 w-4" />
+              Deletar todos os investimentos
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              onClick={handleDeleteAll}
+              className="text-destructive focus:text-destructive"
+              disabled={deleteLoading}
+            >
+              <Trash2 className="mr-2 h-4 w-4" />
+              Deletar investimentos + aliases
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </PageHeader>
 
-      {/* Botões de exclusão */}
-      <div className="flex flex-wrap gap-2">
-        <Button
-          variant="destructive"
-          size="sm"
-          onClick={handleDeleteAll}
-          disabled={deleteLoading}
-        >
-          <Trash2 className="mr-2 h-4 w-4" />
-          Deletar tudo (Investimentos + Aliases)
-        </Button>
-        <Button
-          variant="destructive"
-          size="sm"
-          onClick={handleDeleteInvestments}
-          disabled={deleteLoading}
-        >
-          <Trash2 className="mr-2 h-4 w-4" />
-          Deletar todos os investimentos
-        </Button>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => setDeleteModalOpen(true)}
-          disabled={deleteLoading}
-        >
-          <FileX className="mr-2 h-4 w-4" />
-          Deletar por arquivo
-        </Button>
-      </div>
-
-      {loading && investments.length === 0 ? (
-        <div className="flex items-center justify-center py-12 text-muted-foreground">
-          Carregando investimentos...
-        </div>
-      ) : investments.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
-          <p className="text-lg">Nenhum investimento cadastrado ainda</p>
-          <p className="text-sm">Adicione seu primeiro investimento para começar a acompanhar sua carteira</p>
-        </div>
-      ) : (
-        <div className="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden text-sm">
-          <Table>
-            <TableHeader className="bg-slate-50/80">
-              <TableRow>
-                <TableHead className="font-semibold text-slate-600 cursor-pointer" onClick={() => {setSortKey("ticker");setSortAsc(sortKey!=="ticker"?true:!sortAsc);}}>Ticker</TableHead>
-                <TableHead className="font-semibold text-slate-600 cursor-pointer" onClick={() => {setSortKey("category");setSortAsc(sortKey!=="category"?true:!sortAsc);}}>Categoria</TableHead>
-                <TableHead className="font-semibold text-slate-600 cursor-pointer" onClick={() => {setSortKey("orderType");setSortAsc(sortKey!=="orderType"?true:!sortAsc);}}>Tipo de Ordem</TableHead>
-                <TableHead className="font-semibold text-slate-600 text-right cursor-pointer" onClick={() => {setSortKey("quantity");setSortAsc(sortKey!=="quantity"?true:!sortAsc);}}>Quantidade</TableHead>
-                <TableHead className="font-semibold text-slate-600 text-right cursor-pointer" onClick={() => {setSortKey("unitPrice");setSortAsc(sortKey!=="unitPrice"?true:!sortAsc);}}>Preço Unit.</TableHead>
-                <TableHead className="font-semibold text-slate-600 text-right cursor-pointer" onClick={() => {setSortKey("totalPrice");setSortAsc(sortKey!=="totalPrice"?true:!sortAsc);}}>Total</TableHead>
-                <TableHead className="font-semibold text-slate-600 cursor-pointer" onClick={() => {setSortKey("purchaseDate");setSortAsc(sortKey!=="purchaseDate"?true:!sortAsc);}}>Data Compra</TableHead>
-                <TableHead className="font-semibold text-slate-600 cursor-pointer" onClick={() => {setSortKey("institution");setSortAsc(sortKey!=="institution"?true:!sortAsc);}}>Instituição</TableHead>
-                <TableHead className="text-right font-semibold text-slate-600">Ações</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {sortedInvestments.map((inv) => (
-                <TableRow key={inv.id}>
-                  <TableCell className="font-medium font-mono uppercase">{inv.ticker}</TableCell>
-                  <TableCell>
-                    <Badge variant="secondary">
-                      {InvestmentCategoryLabels[inv.category as InvestmentCategory] ?? inv.category}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant="outline">
-                      {InvestmentOrderTypeLabels[inv.orderType as InvestmentOrderType] ?? inv.orderType}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="text-right text-muted-foreground">
-                    {formatQuantity(inv.quantity)}
-                  </TableCell>
-                  <TableCell className="text-right text-muted-foreground">
-                    {formatCurrency(inv.unitPrice)}
-                  </TableCell>
-                  <TableCell className="text-right font-medium">
-                    {formatCurrency(inv.totalPrice)}
-                  </TableCell>
-                  <TableCell className="text-muted-foreground">
-                    {formatDate(inv.purchaseDate)}
-                  </TableCell>
-                  <TableCell className="text-muted-foreground">{inv.institution}</TableCell>
-                  <TableCell className="text-right">
-                    <div className="flex items-center justify-end gap-1">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => navigate(`/investments/transactions/${inv.id}/edit`)}
-                        title="Editar investimento"
-                      >
-                        <Pencil className="h-4 w-4" />
-                      </Button>
-                      <AlertDialog>
-                        <AlertDialogTrigger asChild>
-                          <Button variant="ghost" size="icon" title="Excluir investimento">
-                            <Trash2 className="h-4 w-4 text-destructive" />
-                          </Button>
-                        </AlertDialogTrigger>
-                        <AlertDialogContent>
-                          <AlertDialogHeader>
-                            <AlertDialogTitle>Excluir investimento?</AlertDialogTitle>
-                            <AlertDialogDescription>
-                              Isso excluirá permanentemente o investimento &quot;{inv.ticker}&quot;.
-                              Esta ação não pode ser desfeita.
-                            </AlertDialogDescription>
-                          </AlertDialogHeader>
-                          <AlertDialogFooter>
-                            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                            <AlertDialogAction
-                              onClick={() => handleDelete(inv.id, inv.ticker)}
-                            >
-                              Excluir
-                            </AlertDialogAction>
-                          </AlertDialogFooter>
-                        </AlertDialogContent>
-                      </AlertDialog>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
-      )}
+      <DataTable
+        columns={columns}
+        data={investments}
+        loading={loading}
+        globalFilterPlaceholder="Pesquisar por ticker, instituicao..."
+        emptyMessage="Nenhum investimento cadastrado ainda."
+        initialPageSize={25}
+      />
 
       <B3ImportSection
         open={b3ImportOpen}
@@ -288,13 +273,13 @@ export function InvestmentListPage() {
         onImportComplete={() => fetchInvestments()}
       />
 
-      {/* Modal: Deletar por arquivo */}
-      <Dialog open={deleteModalOpen} onOpenChange={setDeleteModalOpen}>
+      {/* Delete by file */}
+      <Dialog open={deleteByFileOpen} onOpenChange={setDeleteByFileOpen}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Deletar investimentos por arquivo</DialogTitle>
             <DialogDescription>
-              Informe o nome exato do arquivo de importação cujos investimentos devem ser removidos.
+              Informe o nome exato do arquivo de importacao cujos investimentos devem ser removidos.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-2">
@@ -307,19 +292,34 @@ export function InvestmentListPage() {
                 onChange={(e) => setDeleteFileName(e.target.value)}
               />
             </div>
-            <div className="flex justify-end gap-2">
-              <Button variant="outline" onClick={() => setDeleteModalOpen(false)}>
-                Cancelar
-              </Button>
-              <Button
-                variant="destructive"
-                onClick={handleDeleteByFile}
-                disabled={deleteLoading || !deleteFileName.trim()}
-              >
-                Deletar
-              </Button>
-            </div>
           </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteByFileOpen(false)}>Cancelar</Button>
+            <Button
+              variant="destructive"
+              onClick={handleDeleteByFile}
+              disabled={deleteLoading || !deleteFileName.trim()}
+            >
+              Deletar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete single confirm */}
+      <Dialog open={!!deleteSingleId} onOpenChange={(o) => !o && setDeleteSingleId(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Excluir investimento?</DialogTitle>
+            <DialogDescription>
+              Isso excluira permanentemente o investimento &quot;{deleteSingleId?.ticker}&quot;.
+              Esta acao nao pode ser desfeita.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteSingleId(null)}>Cancelar</Button>
+            <Button variant="destructive" onClick={handleDeleteSingle}>Excluir</Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

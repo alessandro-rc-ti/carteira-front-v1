@@ -12,6 +12,8 @@ interface TransactionState {
   createTransaction: (bankId: string, payload: Partial<Transaction>) => Promise<Transaction | null>;
   updateTransaction: (id: string | number, payload: Partial<Transaction>) => Promise<Transaction | null>;
   deleteByFile: (bankId: string, fileName: string) => Promise<number | null>;
+  deleteAll: (bankId: string) => Promise<number | null>;
+  deleteTransaction: (id: string) => Promise<boolean>;
   clear: () => void;
 }
 

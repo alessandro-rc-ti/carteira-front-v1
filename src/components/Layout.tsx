@@ -1,201 +1,341 @@
 import { useState } from "react";
-import { Outlet, Link, useLocation } from "react-router-dom";
+import { Outlet, Link, useLocation, useNavigate } from "react-router-dom";
+import { useTheme } from "next-themes";
 import useI18nStore from "@/stores/i18nStore";
-import { Landmark, LayoutDashboard, TrendingUp, Search, Bell, Settings, UserCircle, LogOut, Menu, ChevronDown, Wallet, Activity } from "lucide-react";
+import { useAuthStore } from "@/stores/authStore";
+import {
+  Landmark,
+  LayoutDashboard,
+  TrendingUp,
+  Bell,
+  UserCircle,
+  LogOut,
+  Menu,
+  ChevronDown,
+  Wallet,
+  Activity,
+  Sun,
+  Moon,
+  X,
+  Users,
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 
-export function Layout() {
+// ── nav items ────────────────────────────────────────────────────────────────
+
+const topNavItems = [
+  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard, permissions: ["dashboard.main.view"] },
+];
+
+const bankSubItems = [
+  { href: "/banks/dashboard", label: "Dashboard da Conta", icon: LayoutDashboard, permissions: ["bank.dashboard.view"] },
+  { href: "/banks/accounts", label: "Contas", icon: Wallet, permissions: ["bank.accounts.view", "bank.accounts.manage"] },
+  { href: "/banks/transactions", label: "Transações", icon: Activity, permissions: ["transaction.view"] },
+];
+
+const investSubItems = [
+  { href: "/investments/portfolio", label: "Patrimônio", icon: TrendingUp, permissions: ["investment.portfolio.view"] },
+  { href: "/investments/transactions", label: "Lançamentos", icon: Activity, permissions: ["investment.transactions.view", "investment.transactions.manage"] },
+  { href: "/investments/institution-aliases", label: "Inst. Aliases", icon: Landmark, permissions: ["institution_alias.manage"] },
+];
+
+const adminSubItems = [
+  { href: "/users", label: "Usuários", icon: Users, permissions: ["user.manage"] },
+];
+
+// ── sidebar nav content (reusable in Sheet + aside) ──────────────────────────
+
+function SidebarContent({ onCloseMobile }: { onCloseMobile?: () => void }) {
   const location = useLocation();
-  const investmentsOpen = location.pathname.startsWith("/investments");
+  const hasPermission = useAuthStore((state) => state.hasPermission);
+  const logout = useAuthStore((state) => state.logout);
+  const navigate = useNavigate();
   const banksOpen = location.pathname.startsWith("/banks");
-  const [investExpanded, setInvestExpanded] = useState(investmentsOpen);
+  const investmentsOpen = location.pathname.startsWith("/investments");
+  const adminOpen = location.pathname.startsWith("/users");
   const [banksExpanded, setBanksExpanded] = useState(banksOpen);
+  const [investExpanded, setInvestExpanded] = useState(investmentsOpen);
+  const [adminExpanded, setAdminExpanded] = useState(adminOpen);
+  const visibleTopNavItems = topNavItems.filter((item) => hasPermission(item.permissions));
+  const visibleBankSubItems = bankSubItems.filter((item) => hasPermission(item.permissions));
+  const visibleInvestSubItems = investSubItems.filter((item) => hasPermission(item.permissions));
+  const visibleAdminSubItems = adminSubItems.filter((item) => hasPermission(item.permissions));
 
-  const t = useI18nStore((s) => s.t);
+  const NavLink = ({
+    href,
+    icon: Icon,
+    label,
+    exact = false,
+  }: {
+    href: string;
+    icon: React.ElementType;
+    label: string;
+    exact?: boolean;
+  }) => {
+    const isActive = exact ? location.pathname === href : location.pathname.startsWith(href);
+    return (
+      <Link
+        to={href}
+        onClick={onCloseMobile}
+        className={`flex items-center gap-3 px-3 py-2.5 rounded-md text-sm transition-all ${
+          isActive
+            ? "bg-blue-600 text-white font-medium"
+            : "text-slate-400 hover:bg-slate-800 hover:text-slate-100"
+        }`}
+      >
+        <Icon className="h-4 w-4 flex-shrink-0" />
+        {label}
+      </Link>
+    );
+  };
 
-  const topNavItems = [
-    { href: "/dashboard", label: t('layout.nav.dashboard','Dashboard'), icon: LayoutDashboard },
-  ];
-
-  const investSubItems = [
-    { href: "/investments/portfolio", label: t('layout.invest.portfolio','Patrimônio'), icon: TrendingUp },
-    { href: "/investments/transactions", label: t('layout.invest.transactions','Lançamentos'), icon: Activity },
-    { href: "/investments/institution-aliases", label: t('layout.invest.institutionSummary','Resumo Instituição'), icon: Landmark },
-  ];
-
-  const bankSubItems = [
-    { href: "/banks/dashboard", label: t('layout.banks.dashboard','Dashboard da Conta'), icon: LayoutDashboard },
-    { href: "/banks/accounts", label: t('layout.banks.accounts','Contas'), icon: Wallet },
-    { href: "/banks/transactions", label: t('layout.banks.transactions','Transações'), icon: Activity },
-  ];
+  const SubLink = ({
+    href,
+    icon: Icon,
+    label,
+  }: {
+    href: string;
+    icon: React.ElementType;
+    label: string;
+  }) => {
+    const isActive = location.pathname === href;
+    return (
+      <Link
+        to={href}
+        onClick={onCloseMobile}
+        className={`flex items-center gap-2 px-3 py-2 rounded-md text-sm transition-all ${
+          isActive
+            ? "bg-blue-500/20 text-blue-300 font-medium"
+            : "text-slate-400 hover:bg-slate-800 hover:text-slate-100"
+        }`}
+      >
+        <Icon className="h-4 w-4" />
+        {label}
+      </Link>
+    );
+  };
 
   return (
-    <div className="flex h-screen overflow-hidden bg-slate-50">
-      {/* Sidebar (Dark) */}
-      <aside className="w-64 flex-shrink-0 bg-slate-900 text-slate-100 flex flex-col hidden md:flex">
-        {/* Logo Area */}
-        <div className="h-16 flex items-center px-6 border-b border-slate-800">
-          <Link to="/" className="flex items-center gap-3 font-bold text-lg text-white">
-            <Landmark className="h-6 w-6 text-blue-500" />
-            <span>Carteira<span className="text-blue-500">App</span></span>
+    <>
+      {/* Navigation */}
+      <nav className="flex-1 py-4 px-3 space-y-0.5 overflow-y-auto">
+        <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2 px-3 mt-2">
+          Menu Principal
+        </p>
+
+        {visibleTopNavItems.map((item) => (
+          <NavLink key={item.href} href={item.href} icon={item.icon} label={item.label} />
+        ))}
+
+        {/* ── Contas Bancárias ── */}
+        {visibleBankSubItems.length > 0 && <div className="pt-2">
+          <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1 px-3">
+            Contas Bancárias
+          </p>
+          <button
+            onClick={() => setBanksExpanded((v) => !v)}
+            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-md text-sm transition-all ${
+              banksOpen
+                ? "text-slate-100 bg-slate-800"
+                : "text-slate-400 hover:bg-slate-800 hover:text-slate-100"
+            }`}
+          >
+            <Landmark className="h-4 w-4 flex-shrink-0" />
+            <span className="flex-1 text-left font-medium">Contas Bancárias</span>
+            <ChevronDown
+              className={`h-4 w-4 flex-shrink-0 transition-transform duration-200 ${
+                banksExpanded ? "rotate-180" : ""
+              }`}
+            />
+          </button>
+          {banksExpanded && (
+            <div className="mt-0.5 ml-3 pl-3 border-l border-slate-700 space-y-0.5">
+              {visibleBankSubItems.map((sub) => (
+                <SubLink key={sub.href} href={sub.href} icon={sub.icon} label={sub.label} />
+              ))}
+            </div>
+          )}
+        </div>}
+
+        {/* ── Investimentos ── */}
+        {visibleInvestSubItems.length > 0 && <div className="pt-2">
+          <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1 px-3">
+            Investimentos
+          </p>
+          <button
+            onClick={() => setInvestExpanded((v) => !v)}
+            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-md text-sm transition-all ${
+              investmentsOpen
+                ? "text-slate-100 bg-slate-800"
+                : "text-slate-400 hover:bg-slate-800 hover:text-slate-100"
+            }`}
+          >
+            <TrendingUp className="h-4 w-4 flex-shrink-0" />
+            <span className="flex-1 text-left font-medium">Investimentos</span>
+            <ChevronDown
+              className={`h-4 w-4 flex-shrink-0 transition-transform duration-200 ${
+                investExpanded ? "rotate-180" : ""
+              }`}
+            />
+          </button>
+          {investExpanded && (
+            <div className="mt-0.5 ml-3 pl-3 border-l border-slate-700 space-y-0.5">
+              {visibleInvestSubItems.map((sub) => (
+                <SubLink key={sub.href} href={sub.href} icon={sub.icon} label={sub.label} />
+              ))}
+            </div>
+          )}
+        </div>}
+
+        {visibleAdminSubItems.length > 0 && <div className="pt-2">
+          <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1 px-3">
+            Administração
+          </p>
+          <button
+            onClick={() => setAdminExpanded((v) => !v)}
+            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-md text-sm transition-all ${
+              adminOpen
+                ? "text-slate-100 bg-slate-800"
+                : "text-slate-400 hover:bg-slate-800 hover:text-slate-100"
+            }`}
+          >
+            <Users className="h-4 w-4 flex-shrink-0" />
+            <span className="flex-1 text-left font-medium">Administração</span>
+            <ChevronDown
+              className={`h-4 w-4 flex-shrink-0 transition-transform duration-200 ${
+                adminExpanded ? "rotate-180" : ""
+              }`}
+            />
+          </button>
+          {adminExpanded && (
+            <div className="mt-0.5 ml-3 pl-3 border-l border-slate-700 space-y-0.5">
+              {visibleAdminSubItems.map((sub) => (
+                <SubLink key={sub.href} href={sub.href} icon={sub.icon} label={sub.label} />
+              ))}
+            </div>
+          )}
+        </div>}
+      </nav>
+
+      {/* Footer */}
+      <div className="p-4 border-t border-slate-800">
+        <button
+          onClick={() => {
+            logout();
+            navigate("/login", { replace: true });
+          }}
+          className="flex items-center gap-3 text-slate-400 hover:text-white transition-colors w-full px-3 py-2 rounded-md hover:bg-slate-800 text-sm"
+        >
+          <LogOut className="h-4 w-4" />
+          <span>Sair</span>
+        </button>
+      </div>
+    </>
+  );
+}
+
+// ── Main Layout ───────────────────────────────────────────────────────────────
+
+export function Layout() {
+  const { theme, setTheme } = useTheme();
+  const isDark = theme === "dark";
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+  const t = useI18nStore((s) => s.t);
+  const user = useAuthStore((state) => state.user);
+
+  const roleLabel = {
+    OWNER: "Owner",
+    ADMIN: "Admin",
+    STANDARD: "Padrão",
+  }[user?.role ?? "STANDARD"];
+
+  return (
+    <div className="flex h-screen overflow-hidden bg-background">
+      {/* ── Desktop Sidebar ── */}
+      <aside className="w-60 flex-shrink-0 bg-slate-900 text-slate-100 flex-col hidden md:flex">
+        {/* Logo */}
+        <div className="h-14 flex items-center px-5 border-b border-slate-800">
+          <Link to="/" className="flex items-center gap-2.5 font-bold text-base text-white">
+            <div className="h-7 w-7 rounded-lg bg-blue-600 flex items-center justify-center">
+              <Landmark className="h-4 w-4 text-white" />
+            </div>
+            <span>
+              Carteira<span className="text-blue-400">App</span>
+            </span>
           </Link>
         </div>
-
-        {/* Navigation */}
-        <nav className="flex-1 py-4 px-3 space-y-1 overflow-y-auto w-full">
-          <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2 px-3 mt-4">Menu Principal</div>
-
-          {/* Itens simples */}
-          {topNavItems.map((item) => {
-            const isActive = location.pathname.startsWith(item.href);
-            return (
-              <Link
-                key={item.href}
-                to={item.href}
-                className={`flex items-center gap-3 px-3 py-2.5 rounded-md transition-all ${
-                  isActive
-                    ? "bg-blue-600 text-white font-medium"
-                    : "text-slate-400 hover:bg-slate-800 hover:text-slate-100"
-                }`}
-              >
-                <item.icon className="h-5 w-5" />
-                {item.label}
-              </Link>
-            );
-          })}
-
-          {/* Banks submenu */}
-          <div>
-            <button
-              onClick={() => setBanksExpanded((v) => !v)}
-              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-md transition-all ${
-                banksOpen
-                  ? "bg-blue-600 text-white font-medium"
-                  : "text-slate-400 hover:bg-slate-800 hover:text-slate-100"
-              }`}
-            >
-              <Landmark className="h-5 w-5 flex-shrink-0" />
-              <span className="flex-1 text-left">Contas Bancárias</span>
-              <ChevronDown
-                className={`h-4 w-4 flex-shrink-0 transition-transform ${banksExpanded ? "rotate-180" : ""}`}
-              />
-            </button>
-
-            {banksExpanded && (
-              <div className="mt-1 ml-4 pl-4 border-l border-slate-700 space-y-1">
-                {bankSubItems.map((sub) => {
-                  const isActive = location.pathname === sub.href;
-                  const Icon = (sub as any).icon;
-                  return (
-                    <Link
-                      key={sub.href}
-                      to={sub.href}
-                      className={`flex items-center gap-2 px-3 py-2 rounded-md text-sm transition-all ${
-                        isActive
-                          ? "bg-blue-500/20 text-blue-300 font-medium"
-                          : "text-slate-400 hover:bg-slate-800 hover:text-slate-100"
-                      }`}
-                    >
-                      {Icon && <Icon className="h-4 w-4 text-slate-300" />}
-                      <span>{sub.label}</span>
-                    </Link>
-                  );
-                })}
-                
-              </div>
-            )}
-          </div>
-
-          {/* Investimentos (com submenu) */}
-          <div>
-            <button
-              onClick={() => setInvestExpanded((v) => !v)}
-              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-md transition-all ${
-                investmentsOpen
-                  ? "bg-blue-600 text-white font-medium"
-                  : "text-slate-400 hover:bg-slate-800 hover:text-slate-100"
-              }`}
-            >
-              <TrendingUp className="h-5 w-5 flex-shrink-0" />
-              <span className="flex-1 text-left">Investimentos</span>
-              <ChevronDown
-                className={`h-4 w-4 flex-shrink-0 transition-transform ${investExpanded ? "rotate-180" : ""}`}
-              />
-            </button>
-
-            {investExpanded && (
-              <div className="mt-1 ml-4 pl-4 border-l border-slate-700 space-y-1">
-                {investSubItems.map((sub) => {
-                  const isActive = location.pathname === sub.href;
-                  const Icon = (sub as any).icon;
-                  return (
-                    <Link
-                      key={sub.href}
-                      to={sub.href}
-                      className={`flex items-center gap-2 px-3 py-2 rounded-md text-sm transition-all ${
-                        isActive
-                          ? "bg-blue-500/20 text-blue-300 font-medium"
-                          : "text-slate-400 hover:bg-slate-800 hover:text-slate-100"
-                      }`}
-                    >
-                      {Icon && <Icon className="h-4 w-4 text-slate-300" />}
-                      <span>{sub.label}</span>
-                    </Link>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-        </nav>
-        
-        {/* Sidebar Footer */}
-        <div className="p-4 border-t border-slate-800">
-          <button className="flex items-center gap-3 text-slate-400 hover:text-white transition-colors w-full px-3 py-2">
-            <LogOut className="h-5 w-5" />
-            <span>{t('layout.sidebar.logout','Sair')}</span>
-          </button>
-        </div>
+        <SidebarContent />
       </aside>
 
-      {/* Main Container */}
-      <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
-        {/* Topbar (Light) */}
-        <header className="h-16 flex-shrink-0 bg-white border-b border-slate-200 flex items-center justify-between px-6 z-10 shadow-sm">
-          <div className="flex items-center gap-4">
-            <button className="text-slate-500 hover:text-slate-700 md:hidden">
-              <Menu className="h-6 w-6" />
+      {/* ── Mobile Sidebar (Sheet) ── */}
+      <Sheet open={mobileSidebarOpen} onOpenChange={setMobileSidebarOpen}>
+        <SheetContent
+          side="left"
+          className="w-64 p-0 bg-slate-900 text-slate-100 border-slate-800 flex flex-col"
+        >
+          <SheetHeader className="h-14 flex-row items-center justify-between px-5 border-b border-slate-800 space-y-0">
+            <SheetTitle className="text-base font-bold text-white">
+              Carteira<span className="text-blue-400">App</span>
+            </SheetTitle>
+            <button
+              onClick={() => setMobileSidebarOpen(false)}
+              className="text-slate-400 hover:text-white"
+            >
+              <X className="h-4 w-4" />
             </button>
-            {/* Search Bar */}
-            <div className="relative hidden sm:block">
-              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-slate-400" />
-              <input 
-                type="text" 
-                placeholder={t('layout.topbar.search.placeholder','Pesquisar...')} 
-                className="h-9 w-64 rounded-md border border-slate-200 pl-9 pr-4 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 bg-slate-50"
-              />
-            </div>
+          </SheetHeader>
+          <SidebarContent onCloseMobile={() => setMobileSidebarOpen(false)} />
+        </SheetContent>
+      </Sheet>
+
+      {/* ── Main container ── */}
+      <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
+        {/* Topbar */}
+        <header className="h-14 flex-shrink-0 bg-card border-b border-border flex items-center justify-between px-4 z-10">
+          <div className="flex items-center gap-3">
+            {/* Mobile hamburger */}
+            <Button
+              variant="ghost"
+              size="icon"
+              className="md:hidden h-8 w-8"
+              onClick={() => setMobileSidebarOpen(true)}
+            >
+              <Menu className="h-5 w-5" />
+            </Button>
           </div>
 
-          <div className="flex items-center gap-4">
-            <button className="relative text-slate-500 hover:text-slate-700 transition-colors">
-              <Bell className="h-5 w-5" />
-              <span className="absolute top-0 right-0 h-2 w-2 rounded-full bg-red-500 ring-2 ring-white"></span>
-            </button>
-            <button className="text-slate-500 hover:text-slate-700 transition-colors">
-              <Settings className="h-5 w-5" />
-            </button>
-            <div className="h-8 border-l border-slate-200 mx-2"></div>
-            <button className="flex items-center gap-2 text-sm font-medium text-slate-700 hover:text-slate-900">
-              <UserCircle className="h-8 w-8 text-slate-400" />
-              <div className="hidden md:flex flex-col items-start leading-tight">
-                <span className="font-semibold">Administrador</span>
-                <span className="text-[10px] text-slate-500 font-normal">Função: Admin</span>
+          <div className="flex items-center gap-2">
+            {/* Dark mode toggle */}
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8"
+              onClick={() => setTheme(isDark ? "light" : "dark")}
+              title={isDark ? "Modo claro" : "Modo escuro"}
+            >
+              {isDark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+            </Button>
+
+            <Button variant="ghost" size="icon" className="relative h-8 w-8">
+              <Bell className="h-4 w-4" />
+              <span className="absolute top-1.5 right-1.5 h-1.5 w-1.5 rounded-full bg-red-500" />
+            </Button>
+
+            <div className="h-6 border-l border-border mx-1" />
+
+            <button className="flex items-center gap-2 text-sm font-medium hover:opacity-80 transition-opacity">
+              <div className="h-7 w-7 rounded-full bg-blue-600 flex items-center justify-center">
+                <UserCircle className="h-5 w-5 text-white" />
               </div>
+              <span className="hidden md:inline text-sm font-medium">{user?.username ?? t("layout.user.admin", "Admin")}</span>
+              <span className="hidden lg:inline text-xs uppercase tracking-[0.2em] text-muted-foreground">{roleLabel}</span>
             </button>
           </div>
         </header>
 
-        {/* Page Content bg-slate-50 */}
-        <main className="flex-1 overflow-y-auto bg-slate-50 p-6">
+        {/* Page Content */}
+        <main className="flex-1 overflow-y-auto bg-background p-5">
           <Outlet />
         </main>
       </div>

@@ -21,6 +21,7 @@ import {
 } from "@/components/ui/select";
 import { showSuccess, showError } from "@/lib/toast";
 import { ArrowLeft, Save } from "lucide-react";
+import { PageHeader } from "@/components/shared";
 import {
   InvestmentCategory,
   InvestmentCategoryLabels,
@@ -158,27 +159,18 @@ export function InvestmentFormPage() {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6 max-w-3xl">
-      {/* Header */}
-      <div className="flex items-center gap-4">
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon"
-          onClick={() => navigate("/investments/transactions")}
-        >
-          <ArrowLeft className="h-5 w-5" />
+      <PageHeader
+        title={isEditing ? "Editar Investimento" : "Novo Investimento"}
+        description={isEditing ? "Altere os dados do investimento" : "Preencha os dados para cadastrar um novo investimento"}
+      >
+        <Button type="button" variant="ghost" size="icon" onClick={() => navigate("/investments/transactions")}>
+          <ArrowLeft className="h-4 w-4" />
         </Button>
-        <div>
-          <h1 className="text-xl font-bold text-slate-800 tracking-tight uppercase">
-            {isEditing ? "Editar Investimento" : "Novo Investimento"}
-          </h1>
-          <p className="text-slate-500 text-sm mt-1">
-            {isEditing
-              ? "Altere os dados do investimento"
-              : "Preencha os dados para cadastrar um novo investimento"}
-          </p>
-        </div>
-      </div>
+        <Button type="button" variant="outline" onClick={() => navigate("/investments/transactions")}>Cancelar</Button>
+        <Button type="submit" disabled={submitting} className="gap-1.5">
+          <Save className="h-4 w-4" /> {submitting ? "Salvando..." : isEditing ? "Atualizar" : "Criar"}
+        </Button>
+      </PageHeader>
 
       {/* Dados Principais */}
       <Card>
@@ -267,7 +259,7 @@ export function InvestmentFormPage() {
                 value={computedTotal ? formatCurrency(computedTotal) : ""}
                 readOnly
                 disabled
-                className="bg-slate-50 font-medium"
+                className="bg-muted font-medium"
                 placeholder="Calculado automaticamente"
               />
             </div>
@@ -321,24 +313,11 @@ export function InvestmentFormPage() {
         </CardContent>
       </Card>
 
-      {/* Submit */}
-      <div className="flex items-center gap-2">
-        <Button
-          type="button"
-          variant="outline"
-          onClick={() => navigate("/investments/transactions")}
-        >
-          Cancelar
-        </Button>
-        <Button type="submit" disabled={submitting}>
-          {submitting ? (
-            "Salvando..."
-          ) : (
-            <>
-              <Save className="mr-2 h-4 w-4" />
-              {isEditing ? "Atualizar Investimento" : "Criar Investimento"}
-            </>
-          )}
+      {/* Mobile submit */}
+      <div className="flex items-center gap-2 sm:hidden">
+        <Button type="button" variant="outline" className="flex-1" onClick={() => navigate("/investments/transactions")}>Cancelar</Button>
+        <Button type="submit" disabled={submitting} className="flex-1 gap-1.5">
+          <Save className="h-4 w-4" /> {submitting ? "Salvando..." : isEditing ? "Atualizar" : "Criar"}
         </Button>
       </div>
     </form>
