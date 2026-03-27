@@ -166,26 +166,37 @@ export function BankDetailPage() {
           {/* Description Summary Patterns */}
           <div className="space-y-2">
             <h3 className="text-sm font-medium">
-              Padrões de Sumarização ({selectedBank.descriptionSummaryPatterns?.length ?? 0})
+              Regras de Classificação ({selectedBank.classificationRules?.length ?? 0})
             </h3>
-            {selectedBank.descriptionSummaryPatterns &&
-            selectedBank.descriptionSummaryPatterns.length > 0 ? (
+            {selectedBank.classificationRules &&
+            selectedBank.classificationRules.length > 0 ? (
               <div className="max-h-64 overflow-auto rounded-md border">
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Padrão</TableHead>
+                      <TableHead>Descrição</TableHead>
+                      <TableHead>Texto Identificador</TableHead>
+                      <TableHead>Descrição Resumida</TableHead>
+                      <TableHead>Prioridade</TableHead>
                       <TableHead>Estratégia Match</TableHead>
                       <TableHead>Estratégia Extração</TableHead>
-                      <TableHead>Resumo Fixo</TableHead>
                       <TableHead>Ticker</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {selectedBank.descriptionSummaryPatterns.map((p, idx) => (
+                    {selectedBank.classificationRules.map((p, idx) => (
                       <TableRow key={idx}>
+                        <TableCell className="text-xs">
+                          {p.statementDescription ?? "-"}
+                        </TableCell>
                         <TableCell className="font-mono text-xs">
                           {p.matchPattern}
+                        </TableCell>
+                        <TableCell className="text-xs">
+                          {p.fixedSummary ?? "-"}
+                        </TableCell>
+                        <TableCell className="text-xs">
+                          {p.priority ?? "-"}
                         </TableCell>
                         <TableCell>
                           <Badge variant="outline" className="text-xs">
@@ -196,9 +207,6 @@ export function BankDetailPage() {
                           <Badge variant="outline" className="text-xs">
                             {p.extractStrategy ?? "auto"}
                           </Badge>
-                        </TableCell>
-                        <TableCell className="text-xs">
-                          {p.fixedSummary ?? "-"}
                         </TableCell>
                         <TableCell>
                           {p.extractTicker ? (

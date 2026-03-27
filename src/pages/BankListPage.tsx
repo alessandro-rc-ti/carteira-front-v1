@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useBankStore } from "@/stores/bankStore";
-import { bankService } from "@/services";
+import { bankService, classificationRuleService } from "@/services";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -52,7 +52,7 @@ export function BankListPage() {
     if (!selectedBank) return;
     setCloneLoading(true);
     try {
-      await bankService.create({
+      const createdBank = await bankService.create({
         bankName: selectedBank.bankName + " (copia)",
         dateFormatPattern: selectedBank.dateFormatPattern,
         decimalSeparator: selectedBank.decimalSeparator,
@@ -64,8 +64,13 @@ export function BankListPage() {
         csvSkipStrategy: selectedBank.csvSkipStrategy,
         csvSkipValue: selectedBank.csvSkipValue,
         csvSimilarityGroupingThreshold: selectedBank.csvSimilarityGroupingThreshold,
-        descriptionSummaryPatterns: selectedBank.descriptionSummaryPatterns,
+        classificationRules: undefined,
       });
+      await Promise.all(
+        (selectedBank.classificationRules ?? []).map((rule) =>
+          classificationRuleService.create(createdBank.id, { ...rule, id: undefined })
+        )
+      );
       showSuccess(`Banco clonado com sucesso`);
       fetchBanks();
       setCloneDialogOpen(false);
@@ -129,7 +134,7 @@ export function BankListPage() {
       id: "patterns",
       header: "Padroes",
       cell: ({ row }) => (
-        <Badge variant="secondary">{row.original.descriptionSummaryPatterns?.length ?? 0}</Badge>
+        <Badge variant="secondary">{row.original.classificationRules?.length ?? 0}</Badge>
       ),
     },
     {
@@ -218,8 +223,8 @@ export function BankListPage() {
           <DialogHeader>
             <DialogTitle>Clonar banco?</DialogTitle>
             <DialogDescription>
-              Uma copia de &quot;{selectedBank?.bankName}&quot; sera criada com todos os padroes
-              de sumario. Voce podera editar as configuracoes depois.
+              Uma copia de &quot;{selectedBank?.bankName}&quot; sera criada com todas as regras
+              de classificacao. Voce podera editar as configuracoes depois.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
@@ -239,8 +244,8 @@ export function BankListPage() {
           <DialogHeader>
             <DialogTitle>Excluir banco?</DialogTitle>
             <DialogDescription>
-              Isso excluira permanentemente &quot;{selectedBank?.bankName}&quot; e todos os seus
-              padroes de sumario. Esta acao e irreversivel.
+              Isso excluira permanentemente &quot;{selectedBank?.bankName}&quot; e todas as suas
+              regras de classificacao. Esta acao e irreversivel.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>

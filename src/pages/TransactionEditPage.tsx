@@ -1,27 +1,44 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useTransactionStore } from "@/stores/transactionStore";
+import { useTransactionTypeStore } from "@/stores/transactionTypeStore";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { PageHeader } from "@/components/shared";
 import { ArrowLeft } from "lucide-react";
 import { showSuccess, showError } from "@/lib/toast";
-import type { Transaction } from "@/types/transaction";
+import {
+  buildTransactionTypeOptions,
+  TRANSACTION_TYPE_OPTIONS,
+  type Transaction,
+  normalizeTransactionType,
+  resolveTransactionTypeOption,
+} from "@/types/transaction";
 
 export default function TransactionEditPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { transactions, fetchAll, updateTransaction } = useTransactionStore();
+  const { items: transactionTypes, fetchAll: fetchTransactionTypes } = useTransactionTypeStore();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState<Partial<Transaction>>({});
+  const typeOptions = buildTransactionTypeOptions(transactionTypes);
 
   useEffect(() => {
     if (transactions.length === 0) fetchAll().finally(() => setLoading(false));
     else setLoading(false);
-  }, [transactions, fetchAll]);
+    void fetchTransactionTypes();
+  }, [transactions, fetchAll, fetchTransactionTypes]);
 
   useEffect(() => {
     if (!loading && id) {
@@ -39,7 +56,14 @@ export default function TransactionEditPage() {
   const handleSave = async () => {
     setSaving(true);
     try {
-      await updateTransaction(String(form.id), form as Transaction);
+      await updateTransaction(String(form.id), {
+        date: String(form.transactionDate ?? ""),
+        description: String(form.originalDescription ?? ""),
+        summaryDescription: String(form.summaryDescription ?? ""),
+        amount: Number(form.amount ?? 0),
+        type: normalizeTransactionType(form.type) ?? TRANSACTION_TYPE_OPTIONS[0].value,
+        typeCode: typeof form.typeCode === "string" ? form.typeCode : undefined,
+      });
       showSuccess("Transacao atualizada com sucesso");
       navigate(-1);
     } catch (e) {
@@ -95,6 +119,33 @@ export default function TransactionEditPage() {
               value={form.summaryDescription ?? ""}
               onChange={(e) => set("summaryDescription", e.target.value)}
             />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="type">Tipo</Label>
+            <Select
+              value={typeof form.typeCode === "string"
+                ? form.typeCode
+                : resolveTransactionTypeOption(transactionTypes, null, form.type)?.code}
+              onValueChange={(value) => {
+                const selectedOption = typeOptions.find((option) => option.code === value);
+                setForm((current) => ({
+                  ...current,
+                  type: selectedOption?.baseType ?? current.type,
+                  typeCode: selectedOption?.code ?? value,
+                }));
+              }}
+            >
+              <SelectTrigger id="type">
+                <SelectValue placeholder="Selecione o tipo" />
+              </SelectTrigger>
+              <SelectContent>
+                {typeOptions.map((option) => (
+                  <SelectItem key={option.code} value={option.code}>
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
           <div className="space-y-2">
             <Label htmlFor="amount">Valor</Label>

@@ -42,6 +42,7 @@ const investSubItems = [
 
 const adminSubItems = [
   { href: "/users", label: "Usuários", icon: Users, permissions: ["user.manage"] },
+  { href: "/transaction-types", label: "Tipos de Transação", icon: Wallet, permissions: ["transaction.types.manage"] },
 ];
 
 // ── sidebar nav content (reusable in Sheet + aside) ──────────────────────────
@@ -53,7 +54,7 @@ function SidebarContent({ onCloseMobile }: { onCloseMobile?: () => void }) {
   const navigate = useNavigate();
   const banksOpen = location.pathname.startsWith("/banks");
   const investmentsOpen = location.pathname.startsWith("/investments");
-  const adminOpen = location.pathname.startsWith("/users");
+  const adminOpen = location.pathname.startsWith("/users") || location.pathname.startsWith("/transaction-types");
   const [banksExpanded, setBanksExpanded] = useState(banksOpen);
   const [investExpanded, setInvestExpanded] = useState(investmentsOpen);
   const [adminExpanded, setAdminExpanded] = useState(adminOpen);
@@ -245,8 +246,8 @@ export function Layout() {
   const user = useAuthStore((state) => state.user);
 
   const roleLabel = {
-    OWNER: "Owner",
-    ADMIN: "Admin",
+    SYSTEM_OWNER: "Owner da plataforma",
+    ACCOUNT_ADMIN: "Admin da conta",
     STANDARD: "Padrão",
   }[user?.role ?? "STANDARD"];
 

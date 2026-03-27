@@ -1,9 +1,11 @@
 import api from "./api";
-import type { Transaction } from "@/types/transaction";
+import type { Transaction, TransactionUpsertPayload } from "@/types/transaction";
 
 export const transactionQueryService = {
-  async listByBank(bankId: string): Promise<Transaction[]> {
-    const { data } = await api.get<Transaction[]>(`/transactions/bank/${bankId}`);
+  async listByBank(bankId: string, ruleId?: string | null): Promise<Transaction[]> {
+    const { data } = await api.get<Transaction[]>(`/transactions/bank/${bankId}`, {
+      params: ruleId ? { ruleId } : undefined,
+    });
     return data;
   },
 
@@ -12,7 +14,7 @@ export const transactionQueryService = {
     return data;
   },
 
-  async create(bankId: string, payload: Partial<Transaction>): Promise<Transaction> {
+  async create(bankId: string, payload: TransactionUpsertPayload): Promise<Transaction> {
     const { data } = await api.post<Transaction>(`/transactions/${bankId}`, payload);
     return data;
   },
@@ -28,7 +30,7 @@ export const transactionQueryService = {
     return data;
   },
 
-  async update(id: string | number, payload: Partial<Transaction>): Promise<Transaction> {
+  async update(id: string | number, payload: TransactionUpsertPayload): Promise<Transaction> {
     const { data } = await api.put<Transaction>(`/transactions/${id}`, payload);
     return data;
   },

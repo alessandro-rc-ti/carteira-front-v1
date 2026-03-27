@@ -19,7 +19,7 @@ export function UnauthorizedPage() {
           <div className="space-y-2">
             <p className="font-medium">Permissão insuficiente</p>
             <p className="text-sm text-muted-foreground leading-6">
-              Solicite ao owner ou ao administrador da conta a habilitação deste menu, submenu ou ação.
+              Solicite ao owner da plataforma ou ao admin da conta a habilitação deste menu, submenu ou ação.
             </p>
           </div>
         </CardContent>

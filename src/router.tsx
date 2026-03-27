@@ -1,35 +1,96 @@
-import type { ReactElement } from "react";
+/* eslint-disable react-refresh/only-export-components */
+import { Suspense, lazy, type ReactElement } from "react";
 import { createBrowserRouter, Navigate } from "react-router-dom";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { Layout } from "@/components/Layout";
-import {
-  BankListPage,
-  BankDetailPage,
-  BankFormPage,
-  BanksTransactionsPage,
-  BanksAccountsPage,
-  BanksDashboardPage,
-  DashboardPage,
-  TransactionUploadPage,
-  TransactionManualPage,
-  InvestmentListPage,
-  InvestmentFormPage,
-  InstitutionAliasPage,
-  InvestmentPortfolioPage,
-  LoginPage,
-  TransactionEditPage,
-  UnauthorizedPage,
-  UsersPage,
-} from "@/pages";
 
 import { useAuthStore } from "@/stores/authStore";
+import type { UserRole } from "@/types";
 
-function withAuth(element: ReactElement, requiredPermissions?: string[]) {
-  return <ProtectedRoute requiredPermissions={requiredPermissions}>{element}</ProtectedRoute>;
+const BankListPage = lazy(async () => ({
+  default: (await import("@/pages/BankListPage")).BankListPage,
+}));
+const BankDetailPage = lazy(async () => ({
+  default: (await import("@/pages/BankDetailPage")).BankDetailPage,
+}));
+const BankFormPage = lazy(async () => ({
+  default: (await import("@/pages/BankFormPage")).BankFormPage,
+}));
+const BanksTransactionsPage = lazy(() => import("@/pages/BanksTransactionsPage"));
+const BanksAccountsPage = lazy(() => import("@/pages/BanksAccountsPage"));
+const BanksDashboardPage = lazy(async () => ({
+  default: (await import("@/pages/BanksDashboardPage")).BanksDashboardPage,
+}));
+const DashboardPage = lazy(async () => ({
+  default: (await import("@/pages/DashboardPage")).DashboardPage,
+}));
+const TransactionUploadPage = lazy(async () => ({
+  default: (await import("@/pages/TransactionUploadPage")).TransactionUploadPage,
+}));
+const TransactionManualPage = lazy(async () => ({
+  default: (await import("@/pages/TransactionManualPage")).TransactionManualPage,
+}));
+const InvestmentListPage = lazy(async () => ({
+  default: (await import("@/pages/InvestmentListPage")).InvestmentListPage,
+}));
+const InvestmentFormPage = lazy(async () => ({
+  default: (await import("@/pages/InvestmentFormPage")).InvestmentFormPage,
+}));
+const InstitutionAliasPage = lazy(async () => ({
+  default: (await import("@/pages/InstitutionAliasPage")).InstitutionAliasPage,
+}));
+const InvestmentPortfolioPage = lazy(async () => ({
+  default: (await import("@/pages/InvestmentPortfolioPage")).InvestmentPortfolioPage,
+}));
+const LoginPage = lazy(async () => ({
+  default: (await import("@/pages/LoginPage")).LoginPage,
+}));
+const TransactionEditPage = lazy(() => import("@/pages/TransactionEditPage"));
+const UnauthorizedPage = lazy(async () => ({
+  default: (await import("@/pages/UnauthorizedPage")).UnauthorizedPage,
+}));
+const UsersPage = lazy(async () => ({
+  default: (await import("@/pages/UsersPage")).UsersPage,
+}));
+const TransactionTypesPage = lazy(async () => ({
+  default: (await import("@/pages/TransactionTypesPage")).TransactionTypesPage,
+}));
+const PlatformAccountsPage = lazy(async () => ({
+  default: (await import("@/pages/PlatformAccountsPage")).PlatformAccountsPage,
+}));
+
+function withSuspense(element: ReactElement) {
+  return (
+    <Suspense
+      fallback={
+        <div className="p-6 text-sm text-muted-foreground">Carregando página...</div>
+      }
+    >
+      {element}
+    </Suspense>
+  );
+}
+
+function withAuth(
+  element: ReactElement,
+  requiredPermissions?: string[],
+  requiredRole?: UserRole
+) {
+  return (
+    <ProtectedRoute requiredPermissions={requiredPermissions} requiredRole={requiredRole}>
+      {withSuspense(element)}
+    </ProtectedRoute>
+  );
 }
 
 function DefaultRouteRedirect() {
   const hasPermission = useAuthStore((state) => state.hasPermission);
+  const user = useAuthStore((state) => state.user);
+
+  // SYSTEM_OWNER always goes to platform accounts
+  if (user?.role === "SYSTEM_OWNER") {
+    return <Navigate to="/platform/accounts" replace />;
+  }
 
   const candidates = [
     { path: "/dashboard", permissions: ["dashboard.main.view"] },
@@ -49,7 +110,7 @@ function DefaultRouteRedirect() {
 export const router = createBrowserRouter([
   {
     path: "/login",
-    element: <LoginPage />,
+    element: withSuspense(<LoginPage />),
   },
   {
     path: "/",
@@ -61,7 +122,7 @@ export const router = createBrowserRouter([
       },
       {
         path: "unauthorized",
-        element: <UnauthorizedPage />,
+        element: withSuspense(<UnauthorizedPage />),
       },
       {
         path: "dashboard",
@@ -138,6 +199,14 @@ export const router = createBrowserRouter([
       {
         path: "users",
         element: withAuth(<UsersPage />, ["user.manage"]),
+      },
+      {
+        path: "platform/accounts",
+        element: withAuth(<PlatformAccountsPage />, undefined, "SYSTEM_OWNER"),
+      },
+      {
+        path: "transaction-types",
+        element: withAuth(<TransactionTypesPage />, ["transaction.types.manage"]),
       },
       {
         path: "transactions/:id/edit",

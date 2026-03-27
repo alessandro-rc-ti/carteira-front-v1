@@ -13,5 +13,7 @@ export { InvestmentFormPage } from "./InvestmentFormPage";
 export { InstitutionAliasPage } from "./InstitutionAliasPage";
 export { InvestmentPortfolioPage } from "./InvestmentPortfolioPage";
 export { default as TransactionEditPage } from "./TransactionEditPage";
+export { TransactionTypesPage } from "./TransactionTypesPage";
 export { UnauthorizedPage } from "./UnauthorizedPage";
 export { UsersPage } from "./UsersPage";
+export { PlatformAccountsPage } from "./PlatformAccountsPage";

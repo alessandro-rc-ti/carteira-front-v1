@@ -1,6 +1,7 @@
 import { toast as sonnerToast } from "sonner";
+import type { ExternalToast } from "sonner";
 
-type ToastOptions = Record<string, any>;
+type ToastOptions = ExternalToast;
 
 const DEFAULT_OPTIONS: ToastOptions = {
   position: "top-right",

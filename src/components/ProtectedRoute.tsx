@@ -2,13 +2,19 @@ import type { ReactElement } from "react";
 import { Navigate } from "react-router-dom";
 
 import { useAuthStore } from "@/stores/authStore";
+import type { UserRole } from "@/types";
 
 type ProtectedRouteProps = {
   children: ReactElement;
   requiredPermissions?: string[];
+  requiredRole?: UserRole;
 };
 
-export function ProtectedRoute({ children, requiredPermissions }: ProtectedRouteProps) {
+export function ProtectedRoute({
+  children,
+  requiredPermissions,
+  requiredRole,
+}: ProtectedRouteProps) {
   const initialized = useAuthStore((state) => state.initialized);
   const loading = useAuthStore((state) => state.loading);
   const user = useAuthStore((state) => state.user);
@@ -27,6 +33,10 @@ export function ProtectedRoute({ children, requiredPermissions }: ProtectedRoute
 
   if (!user) {
     return <Navigate to="/login" replace />;
+  }
+
+  if (requiredRole && user.role !== requiredRole) {
+    return <Navigate to="/unauthorized" replace />;
   }
 
   if (requiredPermissions && !hasPermission(requiredPermissions)) {

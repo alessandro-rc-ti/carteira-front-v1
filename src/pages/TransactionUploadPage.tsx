@@ -5,6 +5,13 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   Card,
   CardContent,
   CardDescription,
@@ -33,6 +40,8 @@ import {
 } from "lucide-react";
 import { useNavigate, useParams, useLocation } from "react-router-dom";
 import useI18nStore from "@/stores/i18nStore";
+import { useTransactionTypeStore } from "@/stores/transactionTypeStore";
+import { buildTransactionTypeOptions } from "@/types/transaction";
 
 function isBankCsvConfigured(bank: BankResponse): { ok: boolean; missing: string[] } {
   const missing: string[] = [];
@@ -70,6 +79,8 @@ export function TransactionUploadPage() {
   const [configWarnings, setConfigWarnings] = useState<string[]>([]);
   const [pendingRepeatedFileAnalysis, setPendingRepeatedFileAnalysis] =
     useState<CsvAnalysisResponse | null>(null);
+  const { items: transactionTypes, fetchAll: fetchTransactionTypes } = useTransactionTypeStore();
+  const typeOptions = buildTransactionTypeOptions(transactionTypes);
 
   const t = useI18nStore((s) => s.t);
 
@@ -91,6 +102,10 @@ export function TransactionUploadPage() {
     return () => window.removeEventListener("focus", load);
   }, [effectiveBankId]);
 
+  useEffect(() => {
+    void fetchTransactionTypes();
+  }, [fetchTransactionTypes]);
+
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selected = e.target.files?.[0];
     if (selected) {
@@ -111,6 +126,8 @@ export function TransactionUploadPage() {
         textIdentifier: u.originalDescription,
         summary: "",
         extractTicker: false,
+        transactionType: null,
+        transactionTypeCode: null,
       }))
     );
     setStep("analysis");
@@ -151,8 +168,8 @@ export function TransactionUploadPage() {
 
   const handleMappingChange = (
     index: number,
-    field: "textIdentifier" | "summary",
-    value: string
+    field: "textIdentifier" | "summary" | "transactionType" | "transactionTypeCode",
+    value: string | null
   ) => {
     setMappings((prev) =>
       prev.map((m, i) => (i === index ? { ...m, [field]: value } : m))
@@ -484,7 +501,7 @@ export function TransactionUploadPage() {
                             </div>
                           )}
 
-                          <div className="grid gap-4 xl:grid-cols-2">
+                          <div className="grid gap-4 xl:grid-cols-3">
                             <div className="space-y-2">
                               <Label className="text-sm font-medium text-slate-700">
                                 {t('upload.mapping.header.identifier','Texto Identificador')}
@@ -514,6 +531,51 @@ export function TransactionUploadPage() {
                               />
                               <p className="text-xs text-muted-foreground">
                                 Use um resumo curto e consistente para facilitar filtros, relatórios e regras futuras.
+                              </p>
+                            </div>
+
+                            <div className="space-y-2">
+                              <Label className="text-sm font-medium text-slate-700">
+                                Tipo de Transacao
+                              </Label>
+                              <Select
+                                value={mappings[idx]?.transactionTypeCode ?? "AUTO"}
+                                onValueChange={(value) => {
+                                  if (value === "AUTO") {
+                                    setMappings((prev) => prev.map((mapping, currentIndex) => (
+                                      currentIndex === idx
+                                        ? { ...mapping, transactionType: null, transactionTypeCode: null }
+                                        : mapping
+                                    )));
+                                    return;
+                                  }
+
+                                  const selectedOption = typeOptions.find((option) => option.code === value);
+                                  setMappings((prev) => prev.map((mapping, currentIndex) => (
+                                    currentIndex === idx
+                                      ? {
+                                          ...mapping,
+                                          transactionType: selectedOption?.baseType ?? null,
+                                          transactionTypeCode: selectedOption?.code ?? value,
+                                        }
+                                      : mapping
+                                  )));
+                                }}
+                              >
+                                <SelectTrigger className="bg-slate-50 border-slate-200">
+                                  <SelectValue placeholder="Inferir pelo arquivo" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="AUTO">Inferir pelo arquivo</SelectItem>
+                                  {typeOptions.map((option) => (
+                                    <SelectItem key={option.code} value={option.code}>
+                                      {option.label}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                              <p className="text-xs text-muted-foreground">
+                                Escolha manualmente quando o grupo nao for uma simples receita ou despesa.
                               </p>
                             </div>
                           </div>

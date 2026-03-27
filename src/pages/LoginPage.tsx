@@ -56,8 +56,8 @@ export function LoginPage() {
                 Acesse os módulos liberados para a sua conta, com dados compartilhados e governança por perfil.
               </h1>
               <p className="text-slate-300 max-w-lg text-sm lg:text-base leading-7">
-                Owner, admin e padrão operam na mesma base da conta, mas cada usuário enxerga apenas menus,
-                dashboards e ações compatíveis com as permissões concedidas.
+                O owner da plataforma provisiona a conta. Dentro dela, o admin da conta e os usuários padrão
+                operam na mesma base, cada um com menus, dashboards e ações compatíveis com as permissões concedidas.
               </p>
             </div>
 
@@ -82,7 +82,7 @@ export function LoginPage() {
           <CardHeader className="space-y-3">
             <CardTitle className="text-2xl">Entrar</CardTitle>
             <CardDescription>
-              Use as credenciais fornecidas pelo owner ou pelo administrador da conta.
+              Use as credenciais fornecidas pelo owner da plataforma ou pelo admin da conta.
             </CardDescription>
           </CardHeader>
           <CardContent>

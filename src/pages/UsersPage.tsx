@@ -50,8 +50,8 @@ import type {
 } from "@/types";
 
 const ROLE_LABELS: Record<UserRole, string> = {
-  OWNER: "Owner",
-  ADMIN: "Admin",
+  SYSTEM_OWNER: "Owner da plataforma",
+  ACCOUNT_ADMIN: "Admin da conta",
   STANDARD: "Padrão",
 };
 
@@ -122,6 +122,10 @@ const PERMISSION_MODULES: PermissionModule[] = [
         permissions: [{ key: "user.manage", label: "Gerenciar usuários" }],
       },
       {
+        label: "Catálogo",
+        permissions: [{ key: "transaction.types.manage", label: "Gerenciar tipos de transação" }],
+      },
+      {
         label: "Permissões",
         permissions: [{ key: "permission.manage", label: "Gerenciar permissões" }],
       },
@@ -135,6 +139,8 @@ type UserFormState = {
   password: string;
   role: UserRole;
   permissions: string[];
+  standardUserQuota: number;
+  delegablePermissions: string[];
   active: boolean;
 };
 
@@ -144,6 +150,8 @@ const EMPTY_FORM: UserFormState = {
   password: "",
   role: "STANDARD",
   permissions: [],
+  standardUserQuota: 0,
+  delegablePermissions: [],
   active: true,
 };
 
@@ -176,10 +184,17 @@ export function UsersPage() {
 
   const assignableRoles = metadata?.assignableRoles ?? [];
   const availablePermissions = metadata?.availablePermissions ?? [];
+  const availableDelegablePermissions = metadata?.availableDelegablePermissions ?? [];
+  const managedStandardUserQuota = metadata?.managedStandardUserQuota ?? 0;
+  const managedStandardUsersUsed = metadata?.managedStandardUsersUsed ?? 0;
+  const accountAdminUsersCount = metadata?.accountAdminUsersCount ?? 0;
 
   const totalUsers = users.length;
   const activeUsers = users.filter((user) => user.active).length;
-  const adminUsers = users.filter((user) => user.role === "ADMIN").length;
+  const adminUsers = users.filter((user) => user.role === "ACCOUNT_ADMIN" && user.active).length;
+  const standardUsers = users.filter((user) => user.role === "STANDARD" && user.active).length;
+  const standardUserSlotAvailable = currentUser?.role !== "ACCOUNT_ADMIN"
+    || managedStandardUsersUsed < managedStandardUserQuota;
 
   const filteredModules = useMemo(() => {
     const available = new Set(availablePermissions);
@@ -194,7 +209,23 @@ export function UsersPage() {
     })).filter((mod) => mod.subGroups.length > 0);
   }, [availablePermissions]);
 
+  const filteredDelegableModules = useMemo(() => {
+    const available = new Set(availableDelegablePermissions);
+    return PERMISSION_MODULES.map((mod) => ({
+      ...mod,
+      subGroups: mod.subGroups
+        .map((sub) => ({
+          ...sub,
+          permissions: sub.permissions.filter((p) => available.has(p.key)),
+        }))
+        .filter((sub) => sub.permissions.length > 0),
+    })).filter((mod) => mod.subGroups.length > 0);
+  }, [availableDelegablePermissions]);
+
   const dashboardAvailable = availablePermissions.includes(DASHBOARD_PERMISSION.key);
+  const delegableDashboardAvailable = availableDelegablePermissions.includes(DASHBOARD_PERMISSION.key);
+
+  const availableRolesForForm = useMemo(() => assignableRoles, [assignableRoles]);
 
   const resetForm = () => {
     setForm({
@@ -217,10 +248,24 @@ export function UsersPage() {
       password: "",
       role: user.role,
       permissions: [...user.permissions],
+      standardUserQuota: user.standardUserQuota,
+      delegablePermissions: [...user.delegablePermissions],
       active: user.active,
     });
     setDialogOpen(true);
   };
+
+  useEffect(() => {
+    if (form.role !== "ACCOUNT_ADMIN" && (form.standardUserQuota !== 0 || form.delegablePermissions.length > 0)) {
+      setForm((current) => ({
+        ...current,
+        standardUserQuota: 0,
+        delegablePermissions: [],
+      }));
+    }
+  }, [form.role, form.standardUserQuota, form.delegablePermissions.length]);
+
+  const canSubmitActiveStandard = !(form.role === "STANDARD" && form.active && !editingUser && !standardUserSlotAvailable);
 
   const togglePermission = (permission: string, checked: boolean) => {
     setForm((current) => ({
@@ -240,7 +285,29 @@ export function UsersPage() {
     }));
   };
 
+  const toggleDelegablePermission = (permission: string, checked: boolean) => {
+    setForm((current) => ({
+      ...current,
+      delegablePermissions: checked
+        ? [...current.delegablePermissions, permission].sort()
+        : current.delegablePermissions.filter((item) => item !== permission),
+    }));
+  };
+
+  const toggleDelegableModule = (allKeys: string[], allSelected: boolean) => {
+    setForm((current) => ({
+      ...current,
+      delegablePermissions: allSelected
+        ? current.delegablePermissions.filter((p) => !allKeys.includes(p))
+        : [...new Set([...current.delegablePermissions, ...allKeys])].sort(),
+    }));
+  };
+
   const handleSubmit = async () => {
+    if (!canSubmitActiveStandard) {
+      showError("O plano atual não possui vagas disponíveis para novos usuários padrão ativos");
+      return;
+    }
     if (!form.username.trim()) {
       showError("Informe o username do usuário");
       return;
@@ -253,6 +320,16 @@ export function UsersPage() {
       showError("Selecione pelo menos uma permissão");
       return;
     }
+    if (form.role === "ACCOUNT_ADMIN") {
+      if (form.standardUserQuota < 0) {
+        showError("Informe uma cota válida de usuários padrão para o admin");
+        return;
+      }
+      if (form.delegablePermissions.length === 0) {
+        showError("Selecione ao menos uma permissão delegável para o admin da conta");
+        return;
+      }
+    }
 
     setSubmitting(true);
     try {
@@ -262,6 +339,8 @@ export function UsersPage() {
           email: form.email.trim() || null,
           role: form.role,
           permissions: form.permissions,
+          standardUserQuota: form.standardUserQuota,
+          delegablePermissions: form.delegablePermissions,
           active: form.active,
         };
         await updateUser(editingUser.id, payload);
@@ -273,6 +352,8 @@ export function UsersPage() {
           password: form.password,
           role: form.role,
           permissions: form.permissions,
+          standardUserQuota: form.standardUserQuota,
+          delegablePermissions: form.delegablePermissions,
           active: form.active,
         };
         await createUser(payload);
@@ -340,6 +421,26 @@ export function UsersPage() {
       ),
     },
     {
+      id: "delegation",
+      header: "Delegação",
+      cell: ({ row }) => {
+        if (row.original.role === "ACCOUNT_ADMIN") {
+          return (
+            <div className="flex flex-col gap-1 text-xs text-muted-foreground">
+              <span>Cota STANDARD: {row.original.standardUserQuota}</span>
+              <span>Permissões delegáveis: {row.original.delegablePermissions.length}</span>
+            </div>
+          );
+        }
+
+        return (
+          <span className="text-xs text-muted-foreground">
+            {row.original.managedByUsername ? `Admin responsável: ${row.original.managedByUsername}` : "Sem admin responsável"}
+          </span>
+        );
+      },
+    },
+    {
       accessorKey: "active",
       header: "Status",
       cell: ({ row }) => (
@@ -399,7 +500,8 @@ export function UsersPage() {
       <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
         <KpiCard title="Total de usuários" value={String(totalUsers)} icon={Users} />
         <KpiCard title="Usuários ativos" value={String(activeUsers)} icon={CheckCircle2} iconClassName="text-green-600" />
-        <KpiCard title="Administradores" value={String(adminUsers)} icon={ShieldCheck} iconClassName="text-amber-600" />
+        <KpiCard title="Admins da conta" value={String(accountAdminUsersCount || adminUsers)} icon={ShieldCheck} iconClassName="text-amber-600" description="Admins ativos cadastrados nesta conta" />
+        <KpiCard title="Usuários padrão" value={currentUser?.role === "ACCOUNT_ADMIN" ? `${managedStandardUsersUsed}/${managedStandardUserQuota}` : String(standardUsers)} icon={Users} description={currentUser?.role === "ACCOUNT_ADMIN" ? (standardUserSlotAvailable ? "Sua cota individual ainda permite novos usuários padrão" : "Sua cota individual de usuários padrão foi atingida") : "Usuários padrão ativos nesta conta"} />
       </div>
 
       <DataTable
@@ -429,6 +531,12 @@ export function UsersPage() {
           </DialogHeader>
 
           <div className="flex-1 overflow-y-auto px-6 py-5 space-y-5">
+            {!editingUser && !standardUserSlotAvailable ? (
+              <div className="rounded-md border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
+                Sua cota de usuários padrão já foi atingida. Para criar um novo usuário ativo, desative um usuário padrão sob sua responsabilidade ou peça nova cota ao owner do sistema.
+              </div>
+            ) : null}
+
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
                 <Label htmlFor="user-username">Username</Label>
@@ -474,15 +582,43 @@ export function UsersPage() {
                     <SelectValue placeholder="Selecione o perfil" />
                   </SelectTrigger>
                   <SelectContent>
-                    {assignableRoles.map((role) => (
+                    {availableRolesForForm.map((role) => (
                       <SelectItem key={role} value={role}>
                         {ROLE_LABELS[role]}
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
+                {form.role === "ACCOUNT_ADMIN" ? (
+                  <p className="text-xs text-muted-foreground">
+                    O owner do sistema define a cota de usuários padrão e o conjunto de permissões que este admin poderá delegar.
+                  </p>
+                ) : null}
+                {form.role === "STANDARD" && currentUser?.role === "ACCOUNT_ADMIN" ? (
+                  <p className="text-xs text-muted-foreground">
+                    Sua cota atual: {managedStandardUsersUsed}/{managedStandardUserQuota} usuários padrão ativos.
+                  </p>
+                ) : null}
               </div>
             </div>
+
+            {form.role === "ACCOUNT_ADMIN" ? (
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <Label htmlFor="user-standard-quota">Cota de usuários padrão</Label>
+                  <Input
+                    id="user-standard-quota"
+                    type="number"
+                    min={0}
+                    value={form.standardUserQuota}
+                    onChange={(event) => setForm((current) => ({
+                      ...current,
+                      standardUserQuota: Number.parseInt(event.target.value, 10) || 0,
+                    }))}
+                  />
+                </div>
+              </div>
+            ) : null}
 
             <div className="space-y-2">
               <div className="flex items-center justify-between gap-4">
@@ -572,6 +708,84 @@ export function UsersPage() {
                 );
               })}
             </div>
+
+            {form.role === "ACCOUNT_ADMIN" ? (
+              <div className="space-y-2">
+                <div>
+                  <h3 className="text-sm font-semibold">Permissões delegáveis para usuários padrão</h3>
+                  <p className="text-xs text-muted-foreground">
+                    Este conjunto define o teto do que o admin poderá conceder a usuários STANDARD.
+                  </p>
+                </div>
+
+                {delegableDashboardAvailable ? (
+                  <div className="rounded-md border">
+                    <div className="flex items-center gap-2 px-4 py-2.5 bg-muted/40 rounded-t-md border-b">
+                      <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex-1">Dashboard Principal</p>
+                    </div>
+                    <div className="px-4 py-3">
+                      <div className="flex items-center gap-3">
+                        <Switch
+                          id="delegable-dashboard"
+                          checked={form.delegablePermissions.includes(DASHBOARD_PERMISSION.key)}
+                          onCheckedChange={(checked) => toggleDelegablePermission(DASHBOARD_PERMISSION.key, checked)}
+                          className="shrink-0"
+                        />
+                        <Label htmlFor="delegable-dashboard" className="font-normal cursor-pointer text-sm">
+                          {DASHBOARD_PERMISSION.label}
+                        </Label>
+                      </div>
+                    </div>
+                  </div>
+                ) : null}
+
+                {filteredDelegableModules.map((mod) => {
+                  const allKeys = mod.subGroups.flatMap((sub) => sub.permissions.map((p) => p.key));
+                  const selectedCount = allKeys.filter((k) => form.delegablePermissions.includes(k)).length;
+                  const allSelected = selectedCount === allKeys.length && allKeys.length > 0;
+                  return (
+                    <div key={`delegable-${mod.key}`} className="rounded-md border">
+                      <div className="flex items-center justify-between px-4 py-2.5 bg-muted/40 rounded-t-md border-b">
+                        <div className="flex items-center gap-2">
+                          <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{mod.label}</p>
+                          <span className="text-xs text-muted-foreground tabular-nums">{selectedCount}/{allKeys.length}</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs text-muted-foreground">Habilitar tudo</span>
+                          <Switch
+                            checked={allSelected}
+                            onCheckedChange={() => toggleDelegableModule(allKeys, allSelected)}
+                            className="shrink-0"
+                          />
+                        </div>
+                      </div>
+                      <div className="px-4 py-3 space-y-4">
+                        {mod.subGroups.map((sub) => (
+                          <div key={`delegable-${mod.key}-${sub.label}`} className="space-y-1.5">
+                            <p className="text-xs font-medium text-muted-foreground">{sub.label}</p>
+                            <div className="space-y-1.5 pl-1">
+                              {sub.permissions.map((perm) => (
+                                <div key={`delegable-${perm.key}`} className="flex items-center gap-3">
+                                  <Switch
+                                    id={`delegable-${perm.key}`}
+                                    checked={form.delegablePermissions.includes(perm.key)}
+                                    onCheckedChange={(checked) => toggleDelegablePermission(perm.key, checked)}
+                                    className="shrink-0"
+                                  />
+                                  <Label htmlFor={`delegable-${perm.key}`} className="font-normal cursor-pointer text-sm">
+                                    {perm.label}
+                                  </Label>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : null}
           </div>
 
           <DialogFooter className="px-6 py-4 border-t bg-background shrink-0">

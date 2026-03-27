@@ -20,6 +20,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Download, ChevronLeft, ChevronRight, Search, X, Edit, ChevronUp, ChevronDown, ArrowUpDown, Copy, Trash as TrashIcon, FileText } from "lucide-react";
 import { useTransactionStore } from "@/stores/transactionStore";
+import { useTransactionTypeStore } from "@/stores/transactionTypeStore";
 import {
   Dialog,
   DialogContent,
@@ -30,6 +31,12 @@ import {
 } from "@/components/ui/dialog";
 import { useNavigate } from "react-router-dom";
 import useI18nStore from "@/stores/i18nStore";
+import {
+  getTransactionFlowGroup,
+  getTransactionTypeDisplayLabel,
+} from "@/types/transaction";
+
+type SortableValue = string | number | null | undefined;
 
 interface TransactionTableProps {
   transactions: Transaction[];
@@ -55,15 +62,21 @@ export function TransactionTable({
   const [sortKey, setSortKey] = useState<string | null>("transactionDate");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
   const navigate = useNavigate();
+  const transactionTypes = useTransactionTypeStore((state) => state.items);
+  const fetchTransactionTypes = useTransactionTypeStore((state) => state.fetchAll);
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
   const [expandedAll, setExpandedAll] = useState(false);
   const t = useI18nStore((s) => s.t);
-  const deleteTransaction = useTransactionStore((s) => (s as any).deleteTransaction as (id: string) => Promise<boolean>);
+  const deleteTransaction = useTransactionStore((s) => s.deleteTransaction);
   const [tooltipOpenId, setTooltipOpenId] = useState<string | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const tooltipRef = useRef<HTMLDivElement | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [candidateDeleteId, setCandidateDeleteId] = useState<string | null>(null);
+
+  useEffect(() => {
+    void fetchTransactionTypes();
+  }, [fetchTransactionTypes]);
 
   useEffect(() => {
     function onDocClick(e: MouseEvent) {
@@ -83,7 +96,7 @@ export function TransactionTable({
 
   // Available types from data
   const types = useMemo(() => {
-    const set = new Set(transactions.map((t) => t.type).filter(Boolean));
+    const set = new Set(transactions.map((t) => t.typeCode ?? t.type).filter(Boolean));
     return Array.from(set).sort();
   }, [transactions]);
 
@@ -95,7 +108,7 @@ export function TransactionTable({
         tx.summaryDescription?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         tx.originalDescription?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         tx.tickerB3?.toLowerCase().includes(searchTerm.toLowerCase());
-      const matchesType = typeFilter === "ALL" || tx.type === typeFilter;
+      const matchesType = typeFilter === "ALL" || (tx.typeCode ?? tx.type) === typeFilter;
       return matchesSearch && matchesType;
     });
   }, [transactions, searchTerm, typeFilter]);
@@ -105,8 +118,8 @@ export function TransactionTable({
     if (!sortKey) return filtered;
     const copy = [...filtered];
     copy.sort((a, b) => {
-      const av: any = (a as any)[sortKey as any];
-      const bv: any = (b as any)[sortKey as any];
+      const av = a[sortKey as keyof Transaction] as SortableValue;
+      const bv = b[sortKey as keyof Transaction] as SortableValue;
       if (av == null) return sortDir === "asc" ? -1 : 1;
       if (bv == null) return sortDir === "asc" ? 1 : -1;
       if (sortKey === "transactionDate") {
@@ -167,18 +180,19 @@ export function TransactionTable({
     const headers = [
       "Data",
       "Descrição Original",
+      "Descrição Resumida",
       "Tipo",
       "Ticker",
       "Valor",
-      "Tipo",
       ...(showBankColumn ? ["Banco"] : []),
     ];
     const rows = sorted.map((tx) => [
       tx.transactionDate,
+      `"${tx.originalDescription ?? ""}"`,
       `"${tx.summaryDescription ?? ""}"`,
+      getTransactionTypeDisplayLabel(transactionTypes, tx.typeCode, tx.type),
       tx.tickerB3 ?? "",
       tx.amount.toFixed(2).replace(".", ","),
-      tx.type ?? "",
       ...(showBankColumn ? [tx.bankName ?? ""] : []),
     ]);
     const csv = [headers.join(";"), ...rows.map((r) => r.join(";"))].join("\n");
@@ -193,6 +207,34 @@ export function TransactionTable({
 
   // Totals
   const totalAmount = filtered.reduce((sum, tx) => sum + tx.amount, 0);
+  const flowSummary = useMemo(() => {
+    return filtered.reduce(
+      (summary, tx) => {
+        const flowGroup = getTransactionFlowGroup(tx.type);
+
+        if (flowGroup === "income") {
+          summary.incomeCount += 1;
+          summary.incomeTotal += Math.abs(tx.amount);
+        } else if (flowGroup === "expense") {
+          summary.expenseCount += 1;
+          summary.expenseTotal += Math.abs(tx.amount);
+        } else {
+          summary.neutralCount += 1;
+          summary.neutralTotal += Math.abs(tx.amount);
+        }
+
+        return summary;
+      },
+      {
+        incomeCount: 0,
+        incomeTotal: 0,
+        expenseCount: 0,
+        expenseTotal: 0,
+        neutralCount: 0,
+        neutralTotal: 0,
+      }
+    );
+  }, [filtered]);
 
   const handleSort = (key: string) => {
     if (sortKey === key) {
@@ -248,7 +290,7 @@ export function TransactionTable({
             <SelectItem value="ALL">Todos os tipos</SelectItem>
             {types.map((t) => (
               <SelectItem key={t} value={t}>
-                {t}
+                {getTransactionTypeDisplayLabel(transactionTypes, t, undefined)}
               </SelectItem>
             ))}
           </SelectContent>
@@ -260,13 +302,22 @@ export function TransactionTable({
       </div>
 
       {/* Summary */}
-      <div className="flex items-center gap-4 text-sm text-muted-foreground">
+      <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
         <span>{filtered.length} transação(ões)</span>
         <span className="font-medium">
           Total:{" "}
           <span className={totalAmount >= 0 ? "text-green-600" : "text-red-600"}>
             {totalAmount.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
           </span>
+        </span>
+        <span className="text-emerald-600">
+          Receitas: {flowSummary.incomeCount} ({flowSummary.incomeTotal.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })})
+        </span>
+        <span className="text-red-600">
+          Despesas: {flowSummary.expenseCount} ({flowSummary.expenseTotal.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })})
+        </span>
+        <span className="text-slate-600">
+          Neutras: {flowSummary.neutralCount} ({flowSummary.neutralTotal.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })})
         </span>
       </div>
 
@@ -350,13 +401,27 @@ export function TransactionTable({
                     )}
                   </TableCell>
                   <TableCell>
-                    <Badge variant={tx.type?.toLowerCase().includes("credit") ? "default" : "outline"}>
-                      {tx.type}
-                    </Badge>
+                    {getTransactionFlowGroup(tx.type) === "income" ? (
+                      <Badge variant="default">
+                        {getTransactionTypeDisplayLabel(transactionTypes, tx.typeCode, tx.type)}
+                      </Badge>
+                    ) : getTransactionFlowGroup(tx.type) === "expense" ? (
+                      <Badge variant="outline" className="border-red-200 text-red-600">
+                        {getTransactionTypeDisplayLabel(transactionTypes, tx.typeCode, tx.type)}
+                      </Badge>
+                    ) : (
+                      <Badge variant="secondary">
+                        {getTransactionTypeDisplayLabel(transactionTypes, tx.typeCode, tx.type)}
+                      </Badge>
+                    )}
                   </TableCell>
                   <TableCell
                     className={`text-right font-mono whitespace-nowrap ${
-                      tx.amount >= 0 ? "text-green-600" : "text-red-600"
+                      getTransactionFlowGroup(tx.type) === "income"
+                        ? "text-green-600"
+                        : getTransactionFlowGroup(tx.type) === "expense"
+                          ? "text-red-600"
+                          : "text-slate-600"
                     }`}
                   >
                     {tx.amount.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
@@ -412,7 +477,7 @@ export function TransactionTable({
                                         await navigator.clipboard.writeText(text);
                                         setCopiedId(tx.id);
                                         setTimeout(() => setCopiedId(null), 1500);
-                                      } catch (e) {
+                                      } catch {
                                         // ignore
                                       }
                                     }}
@@ -442,7 +507,7 @@ export function TransactionTable({
                         <div className="flex gap-4 text-xs text-muted-foreground">
                           <div><strong>Banco:</strong> {tx.bankName ?? "-"}</div>
                           <div><strong>Ticker:</strong> {tx.tickerB3 ?? "-"}</div>
-                          <div><strong>Tipo:</strong> {tx.type ?? "-"}</div>
+                          <div><strong>Tipo:</strong> {getTransactionTypeDisplayLabel(transactionTypes, tx.typeCode, tx.type)}</div>
                         </div>
                       </div>
                     </TableCell>

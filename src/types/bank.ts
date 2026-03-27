@@ -35,9 +35,11 @@ export const ExtractStrategy = {
 export type ExtractStrategy =
   (typeof ExtractStrategy)[keyof typeof ExtractStrategy];
 
-// ===== Description Summary Pattern =====
+// ===== Transaction Classification Rules =====
 
-export interface DescriptionSummaryPattern {
+export interface TransactionClassificationRule {
+  id?: string;
+  statementDescription?: string | null;
   matchPattern: string;
   extractRegex?: string | null;
   matchStrategy?: MatchStrategy | null;
@@ -48,6 +50,36 @@ export interface DescriptionSummaryPattern {
   extractEnd?: string | null;
   fixedSummary?: string | null;
   extractTicker?: boolean;
+  priority?: number | null;
+  active?: boolean;
+  transactionType?: string | null;
+  transactionTypeCode?: string | null;
+}
+
+export const TransactionClassificationRuleUpdateMode = {
+  UPDATE_LINKED_TRANSACTIONS: "UPDATE_LINKED_TRANSACTIONS",
+  CREATE_NEW_VERSION: "CREATE_NEW_VERSION",
+} as const;
+export type TransactionClassificationRuleUpdateMode =
+  (typeof TransactionClassificationRuleUpdateMode)[keyof typeof TransactionClassificationRuleUpdateMode];
+
+export interface UpdateTransactionClassificationRuleRequest {
+  rule: TransactionClassificationRule;
+  updateMode: TransactionClassificationRuleUpdateMode;
+}
+
+export interface TransactionClassificationRuleUsageResponse {
+  ruleId: string;
+  active: boolean;
+  relatedTransactionsCount: number;
+  canDeletePhysically: boolean;
+}
+
+export interface DeleteTransactionClassificationRuleResponse {
+  ruleId: string;
+  relatedTransactionsCount: number;
+  deletedPhysically: boolean;
+  deactivated: boolean;
 }
 
 // ===== Bank Request / Response =====
@@ -64,7 +96,7 @@ export interface BankRequest {
   csvSkipStrategy?: CsvSkipStrategy | null;
   csvSkipValue?: string | null;
   csvSimilarityGroupingThreshold?: number | null;
-  descriptionSummaryPatterns: DescriptionSummaryPattern[];
+  classificationRules?: TransactionClassificationRule[];
 }
 
 export interface BankResponse {
@@ -80,7 +112,7 @@ export interface BankResponse {
   csvSkipStrategy?: CsvSkipStrategy | null;
   csvSkipValue?: string | null;
   csvSimilarityGroupingThreshold?: number | null;
-  descriptionSummaryPatterns: DescriptionSummaryPattern[];
+  classificationRules: TransactionClassificationRule[];
   createdAt: string;
   updatedAt: string;
   active: boolean;
@@ -99,6 +131,8 @@ export interface ManualMapping {
   textIdentifier: string;
   summary: string;
   extractTicker?: boolean;
+  transactionType?: string | null;
+  transactionTypeCode?: string | null;
 }
 
 export interface CsvAnalysisResponse {

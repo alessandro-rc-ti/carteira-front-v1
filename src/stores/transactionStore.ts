@@ -1,16 +1,17 @@
 import { create } from "zustand";
+import { isAxiosError } from "axios";
 import { showSuccess, showError } from "@/lib/toast";
 import { transactionQueryService } from "@/services/transactionService";
-import type { Transaction } from "@/types/transaction";
+import type { Transaction, TransactionUpsertPayload } from "@/types/transaction";
 
 interface TransactionState {
   transactions: Transaction[];
   loading: boolean;
   error: string | null;
-  fetchByBank: (bankId: string) => Promise<void>;
+  fetchByBank: (bankId: string, ruleId?: string | null) => Promise<void>;
   fetchAll: () => Promise<void>;
-  createTransaction: (bankId: string, payload: Partial<Transaction>) => Promise<Transaction | null>;
-  updateTransaction: (id: string | number, payload: Partial<Transaction>) => Promise<Transaction | null>;
+  createTransaction: (bankId: string, payload: TransactionUpsertPayload) => Promise<Transaction | null>;
+  updateTransaction: (id: string | number, payload: TransactionUpsertPayload) => Promise<Transaction | null>;
   deleteByFile: (bankId: string, fileName: string) => Promise<number | null>;
   deleteAll: (bankId: string) => Promise<number | null>;
   deleteTransaction: (id: string) => Promise<boolean>;
@@ -22,10 +23,10 @@ export const useTransactionStore = create<TransactionState>((set) => ({
   loading: false,
   error: null,
 
-  fetchByBank: async (bankId: string) => {
+  fetchByBank: async (bankId: string, ruleId?: string | null) => {
     set({ loading: true, error: null });
     try {
-      const transactions = await transactionQueryService.listByBank(bankId);
+      const transactions = await transactionQueryService.listByBank(bankId, ruleId);
       set({ transactions, loading: false });
     } catch (err) {
       set({
@@ -48,7 +49,7 @@ export const useTransactionStore = create<TransactionState>((set) => ({
     }
   },
 
-  createTransaction: async (bankId: string, payload: Partial<Transaction>) => {
+  createTransaction: async (bankId: string, payload: TransactionUpsertPayload) => {
     set({ loading: true, error: null });
     try {
       const created = await transactionQueryService.create(bankId, payload);
@@ -63,12 +64,12 @@ export const useTransactionStore = create<TransactionState>((set) => ({
     }
   },
 
-  updateTransaction: async (id: string | number, payload: Partial<Transaction>) => {
+  updateTransaction: async (id: string | number, payload: TransactionUpsertPayload) => {
     set({ loading: true, error: null });
     try {
       const updated = await transactionQueryService.update(id, payload);
       set((state) => ({
-        transactions: state.transactions.map((t) => (String((t as any).id) === String(id) ? updated : t)),
+        transactions: state.transactions.map((t) => (String(t.id) === String(id) ? updated : t)),
         loading: false,
       }));
       return updated;
@@ -105,7 +106,7 @@ export const useTransactionStore = create<TransactionState>((set) => ({
       const res = await transactionQueryService.deleteByFile(bankId, fileName);
       // remove transactions that have this fileName (if Transaction has fileName)
       set((state) => ({
-        transactions: state.transactions.filter((t) => ((t as any).importFileName ?? (t as any).origin) !== fileName),
+        transactions: state.transactions.filter((t) => (t.importFileName ?? t.origin) !== fileName),
         loading: false,
       }));
       showSuccess(`${res?.deletedCount ?? 0} transação(ões) deletada(s)`);
@@ -131,12 +132,21 @@ export const useTransactionStore = create<TransactionState>((set) => ({
       showSuccess("Transação removida com sucesso");
       return true;
     } catch (err) {
-      // Try to extract backend message from axios error
-      const anyErr: any = err;
-      const backendMessage = anyErr?.response?.data?.message || anyErr?.response?.data || anyErr?.message;
+      const backendMessage = isAxiosError(err)
+        ? err.response?.data && typeof err.response.data === "object" && err.response.data !== null && "message" in err.response.data
+          ? String((err.response.data as { message: unknown }).message)
+          : typeof err.response?.data === "string"
+            ? err.response.data
+            : err.message
+        : err instanceof Error
+          ? err.message
+          : "Falha ao deletar transação";
       const message = typeof backendMessage === "string" ? backendMessage : JSON.stringify(backendMessage);
-      // Log full error to console for easier diagnosis (status + body)
-      console.error("deleteTransaction error:", anyErr?.response?.status, anyErr?.response?.data ?? anyErr);
+      if (isAxiosError(err)) {
+        console.error("deleteTransaction error:", err.response?.status, err.response?.data ?? err.message);
+      } else {
+        console.error("deleteTransaction error:", err);
+      }
       set({ error: message, loading: false });
       showError(message || "Falha ao deletar transação");
       return false;

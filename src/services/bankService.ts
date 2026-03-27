@@ -5,6 +5,10 @@ import type {
   CsvAnalysisResponse,
   CsvImportResponse,
   ManualMapping,
+  DeleteTransactionClassificationRuleResponse,
+  TransactionClassificationRule,
+  TransactionClassificationRuleUsageResponse,
+  UpdateTransactionClassificationRuleRequest,
 } from "@/types";
 
 // ===== Bank CRUD =====
@@ -32,6 +36,37 @@ export const bankService = {
 
   async remove(id: string): Promise<void> {
     await api.delete(`/banks/${id}`);
+  },
+};
+
+export const classificationRuleService = {
+  async listByBank(bankId: string): Promise<TransactionClassificationRule[]> {
+    const { data } = await api.get<TransactionClassificationRule[]>(`/banks/${bankId}/classification-rules`);
+    return data;
+  },
+
+  async create(bankId: string, rule: TransactionClassificationRule): Promise<TransactionClassificationRule> {
+    const { data } = await api.post<TransactionClassificationRule>(`/banks/${bankId}/classification-rules`, rule);
+    return data;
+  },
+
+  async update(
+    bankId: string,
+    ruleId: string,
+    request: UpdateTransactionClassificationRuleRequest
+  ): Promise<TransactionClassificationRule> {
+    const { data } = await api.put<TransactionClassificationRule>(`/banks/${bankId}/classification-rules/${ruleId}`, request);
+    return data;
+  },
+
+  async getUsage(bankId: string, ruleId: string): Promise<TransactionClassificationRuleUsageResponse> {
+    const { data } = await api.get<TransactionClassificationRuleUsageResponse>(`/banks/${bankId}/classification-rules/${ruleId}/usage`);
+    return data;
+  },
+
+  async remove(bankId: string, ruleId: string): Promise<DeleteTransactionClassificationRuleResponse> {
+    const { data } = await api.delete<DeleteTransactionClassificationRuleResponse>(`/banks/${bankId}/classification-rules/${ruleId}`);
+    return data;
   },
 };
 

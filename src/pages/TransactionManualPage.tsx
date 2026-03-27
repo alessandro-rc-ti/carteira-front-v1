@@ -14,8 +14,18 @@ import { PageHeader } from "@/components/shared";
 import { ArrowLeft, PlusCircle } from "lucide-react";
 import { useNavigate, useSearchParams, useParams } from "react-router-dom";
 import { useBankStore } from "@/stores/bankStore";
+import { useTransactionTypeStore } from "@/stores/transactionTypeStore";
 import { useTransactionStore } from "@/stores/transactionStore";
 import { showSuccess, showError } from "@/lib/toast";
+import { buildTransactionTypeOptions, TransactionType, type TransactionTypeValue } from "@/types/transaction";
+
+type ManualTransactionForm = {
+  date: string;
+  description: string;
+  amount: string;
+  type: TransactionTypeValue;
+  typeCode: string;
+};
 
 export function TransactionManualPage() {
   const navigate = useNavigate();
@@ -26,13 +36,22 @@ export function TransactionManualPage() {
   const bankId = bankIdFromQuery || bankIdFromParams || "";
 
   const { selectedBank, fetchBankById, fetchBanks } = useBankStore();
-  const [form, setForm] = useState({ date: "", description: "", amount: "", type: "income" });
+  const { items: transactionTypes, fetchAll: fetchTransactionTypes } = useTransactionTypeStore();
+  const [form, setForm] = useState<ManualTransactionForm>({
+    date: "",
+    description: "",
+    amount: "",
+    type: TransactionType.EXPENSE,
+    typeCode: TransactionType.EXPENSE,
+  });
   const [loading, setLoading] = useState(false);
+  const typeOptions = buildTransactionTypeOptions(transactionTypes);
 
   useEffect(() => {
     fetchBanks();
     if (bankId) fetchBankById(bankId);
-  }, [bankId, fetchBanks, fetchBankById]);
+    void fetchTransactionTypes();
+  }, [bankId, fetchBanks, fetchBankById, fetchTransactionTypes]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -49,6 +68,7 @@ export function TransactionManualPage() {
         description: form.description,
         amount: Number(form.amount),
         type: form.type,
+        typeCode: form.typeCode,
       });
       if (created) {
         showSuccess("Transacao cadastrada com sucesso!");
@@ -120,12 +140,12 @@ export function TransactionManualPage() {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="description">Descricao</Label>
+              <Label htmlFor="description">Descricao do Extrato</Label>
               <Input
                 id="description"
                 value={form.description}
                 onChange={(e) => setForm({ ...form, description: e.target.value })}
-                placeholder="Ex: Supermercado, Salario..."
+                placeholder="Ex: PIX MERCADO CENTRAL ou SALARIO EMPRESA X"
                 required
               />
             </div>
@@ -144,17 +164,30 @@ export function TransactionManualPage() {
             <div className="space-y-2">
               <Label htmlFor="type">Tipo</Label>
               <Select
-                value={form.type}
-                onValueChange={(v) => setForm({ ...form, type: v })}
+                value={form.typeCode}
+                onValueChange={(value) => {
+                  const selectedOption = typeOptions.find((option) => option.code === value);
+                  setForm({
+                    ...form,
+                    type: selectedOption?.baseType ?? TransactionType.EXPENSE,
+                    typeCode: selectedOption?.code ?? TransactionType.EXPENSE,
+                  });
+                }}
               >
                 <SelectTrigger id="type">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="income">Receita</SelectItem>
-                  <SelectItem value="expense">Despesa</SelectItem>
+                  {typeOptions.map((option) => (
+                    <SelectItem key={option.code} value={option.code}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
+              <p className="text-xs text-muted-foreground">
+                {typeOptions.find((option) => option.code === form.typeCode)?.description}
+              </p>
             </div>
             <Button className="w-full" disabled={loading} type="submit">
               <PlusCircle className="mr-2 h-4 w-4" />
